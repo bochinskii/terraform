@@ -1,0 +1,23 @@
+-------------------------
+Terraform
+-----------------------
+
+Инструмент для создания инфраструктуры как код.
+
+---------
+Установка
+---------
+
+https://learn.hashicorp.com/tutorials/terraform/install-cli
+
+Установка происходит легко.
+
+
+----------------
+Плагины для Atom
+----------------
+
+Какие же нужны плагины под Atom:
+- language-terraform;
+- terraform-fmr;
+- linter-terraform-syntacs

@@ -1,0 +1,10 @@
+secret/*
+001_Create_AWS_EC2_instance/.terraform/*
+001_Create_AWS_EC2_instance/terraform*
+001_Create_AWS_EC2_instance/.terraform*
+002_Create_LEMP_file/.terraform/*
+002_Create_LEMP_file/terraform*
+002_Create_LEMP_file/.terraform*
+003_Create_LEMP_templatefile/.terraform/*
+003_Create_LEMP_templatefile/terraform*
+003_Create_LEMP_templatefile/.terraform*
