@@ -381,108 +381,8 @@ $ terraform init
 
 $ touch main.tf
 
-variable "ssh_port" {}
-
-resource "aws_instance" "my_lemp" {
-  ami = "ami-05f5f4f906feab6a7"
-  instance_type = "t2.micro"
-
-  key_name = "bochinskii_Frankfurt_2"
-
-  vpc_security_group_ids = [
-    aws_security_group.my_lemp_web.id,
-    aws_security_group.my_lemp_ssh.id
-  ]
-
-  availability_zone = "eu-central-1a"
-  subnet_id = "subnet-000c2008b7496a3b7"
-  user_data_base64 = file("../secret/user_data.base64.sh")
-
-  root_block_device {
-    volume_type = "gp3"
-    volume_size = 10
-    delete_on_termination = true
-  }
-
-  tags = {
-    Name = "my_lemp"
-    Owner = "Denis Bochinskii"
-  }
-}
-
-resource "aws_security_group" "my_lemp_web" {
-  name        = "my_lemp_web"
-  description = "Allow Web traffic"
-  vpc_id      = "vpc-03ccdbfd7272a7584"
-
-  ingress {
-    description      = "To HTTP"
-    from_port        = 80
-    to_port          = 80
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  ingress {
-    description      = "To HTTPS"
-    from_port        = 443
-    to_port          = 443
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  tags = {
-    Name = "my_lemp_web"
-    Owner = "Denis Bochinskii"
-  }
-}
-
-resource "aws_security_group" "my_lemp_ssh" {
-  name        = "my_lemp_ssh"
-  description = "Allow Web traffic"
-  vpc_id      = "vpc-03ccdbfd7272a7584"
-
-  ingress {
-    description      = "To SSH"
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  ingress {
-    description      = "To custome SSH"
-    from_port        = var.ssh_port
-    to_port          = var.ssh_port
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  tags = {
-    Name = "my_lemp_ssh"
-    Owner = "Denis Bochinskii"
-  }
-}
+Так как файл имеет внушительное количество содержимого, ознакомится с ним вы можете
+в директории с проектом.
 
 В tf файле мы сперва укзали ресур aws_instance, а потом ресурсы aws_security_group.
 Тем не менее мы создали автоматическую связь между aws_instance и aws_security_group
@@ -592,105 +492,7 @@ $ terraform init
 
 $ touch ./variables.tf
 
-#
-# Userd data variables
-#
-variable "hostname" {
-  type = string
-  default = "rocinante"
-}
-variable "timezone" {
-  type = string
-  default = "Europe/Berlin"
-}
-variable "ssh_port" {} # for user data and aws_security_group
-variable "mysql_repo" {
-  type = string
-  default = "https://dev.mysql.com/get/mysql80-community-release-el7-6.noarch.rpm"
-}
-variable "mysql_root_pass" {}
-variable "mysql_admin_user" {}
-variable "mysql_admin_user_pass" {}
-variable "mysql_drupal_user" {}
-variable "mysql_drupal_user_pass" {}
-variable "mysql_drupal_db" {}
-variable "pkgs" {
-  type = list(string)
-  default = [
-    "php", "php-fpm", "php-pdo", "php-mysqlnd", "php-xml", "php-gd", "php-curl",
-    "php-mbstring", "php-json", "php-common", "php-gmp", "php-intl", "php-gd", "php-cli", "php-zip", "php-opcache"
-  ]
-}
-variable "ssl_cert" {
-  type = string
-  default = "rocinante.crt"
-}
-variable "ssl_key" {
-  type = string
-  default = "rocinante.key"
-}
-variable "site_dir" {}
-variable "site_config" {
-  type = string
-  default = "rocinante.conf"
-}
-
-# aws_instance variables
-
-variable "ami" {
-  type = string
-  default = "ami-05f5f4f906feab6a7"
-}
-
-variable "instance_type" {
-  type = string
-  default = "t2.micro"
-}
-
-variable "key_name" {
-  type = string
-  default = "bochinskii_Frankfurt_2"
-}
-
-variable "availability_zone" {
-  type = string
-  default = "eu-central-1a"
-}
-
-variable "subnet_id" {
-  type = string
-  default = "subnet-000c2008b7496a3b7"
-}
-
-####### root_block_device variables
-
-variable "volume_type" {
-  type = string
-  default = "gp3"
-}
-
-variable "volume_size" {
-  type = number
-  default = 10
-}
-
-# aws_security_group variables
-
-variable "vpc_id" {
-  type = string
-  default = "vpc-03ccdbfd7272a7584"
-}
-
-# Other variables
-
-variable "template_tags" {
-  type = map
-  default = {
-    Owner = "Denis Bochinskii"
-    Project = "rocinante"
-    Env = "dev"
-  }
-}
+С содержимым данного файла можно ознакомиться в директории с проектом.
 
 У нас есть переменные, которые мы можем "показывать" в нашем проекте, а есть,
 которые мы не хотим "показывать". Как бы там нибыло, мы должны определить все переменные.
@@ -753,141 +555,7 @@ resource "aws_instance" "my_lemp" {
 
 $ touch ./main.tf
 
-resource "aws_instance" "my_lemp" {
-  ami = var.ami
-  instance_type = var.instance_type
-
-  key_name = var.key_name
-
-  vpc_security_group_ids = [
-    aws_security_group.my_lemp_web.id,
-    aws_security_group.my_lemp_ssh.id
-  ]
-
-  availability_zone = var.availability_zone
-  subnet_id = var.subnet_id
-  # user_data = templatefile("./user_data.sh.tftpl", {})
-  user_data_base64 = base64encode(templatefile("./user_data.sh.tftpl",
-  {
-    hostname = var.hostname,
-    timezone = var.timezone,
-    ssh_port = var.ssh_port,
-    mysql_repo = var.mysql_repo,
-    mysql_root_pass = var.mysql_root_pass,
-    mysql_admin_user = var.mysql_admin_user,
-    mysql_admin_user_pass = var.mysql_admin_user_pass,
-    mysql_drupal_user = var.mysql_drupal_user,
-    mysql_drupal_user_pass = var.mysql_drupal_user_pass,
-    mysql_drupal_db = var.mysql_drupal_db,
-    pkgs = var.pkgs,
-    ssl_cert = var.ssl_cert,
-    ssl_key = var.ssl_key,
-    site_dir = var.site_dir,
-    site_config = var.site_config
-  }
-  ))
-
-  root_block_device {
-    volume_type = var.volume_type
-    volume_size = var.volume_size
-    delete_on_termination = true
-  }
-
-  tags = merge(
-    var.template_tags,
-    {
-      Name = "my_lemp_${var.template_tags["Env"]}"
-    }
-  )
-  /*
-  tags = {
-    Name = "my_lemp"
-    Owner = "Denis Bochinskii"
-    Project = "rocinante"
-    Env = "dev"
-  }
-  */
-}
-
-resource "aws_security_group" "my_lemp_web" {
-  name        = "my_lemp_web"
-  description = "Allow Web traffic"
-  vpc_id      = var.vpc_id
-
-  ingress {
-    description      = "To HTTP"
-    from_port        = 80
-    to_port          = 80
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  ingress {
-    description      = "To HTTPS"
-    from_port        = 443
-    to_port          = 443
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  tags = merge(
-    var.template_tags,
-    {
-      Name = "my_lemp_web"
-    }
-  )
-
-}
-
-resource "aws_security_group" "my_lemp_ssh" {
-  name        = "my_lemp_ssh"
-  description = "Allow Web traffic"
-  vpc_id      = var.vpc_id
-
-  ingress {
-    description      = "To SSH"
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  ingress {
-    description      = "To custome SSH"
-    from_port        = var.ssh_port
-    to_port          = var.ssh_port
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  tags = merge(
-    var.template_tags,
-    {
-      Name = "my_lemp_ssh"
-    }
-  )
-
-}
+С содержимым данного файла можно ознакомиться в директории с проектом.
 
 Как мы уже говорили, обращаемся к переменным с помощью - var.<variable name>.
 
@@ -926,16 +594,147 @@ Name = "my_lemp_${var.template_tags["Env"]}"
 
 
 Теперь, по поводу шаблонов (templatefile).
+В прошлый раз мы использовали функцию - file("<path to the shell script>").
+Таким образом мы использовали статический файл (скрипт) для установки LEMP.
 
+Но можно использовать не статический файл, а динамически создаваемый (шаблоны).
+Для чего это может понадобится? Например, в нашем случае в скрипте используются
+переменные, в которых должны быть определены пароли для базы данных. Эти переменные
+не хочется указывать в скрипте в плейн тексте. Поэтому мы будем использовать шаблон.
 
+Вот как он используется:
 
+user_data = templatefile("<path to temple file>", {var1 = <value>, var2 = <value>, ... })
 
+Тут, переменные которые будут использоваться в шаблоне (скрипте).
+
+Шаблон - это обычный скрипт на shell, но мы можем использовать там переменные,
+которые могут быть использованы terraform'ом. Бест практис,
+добавлять суффикс к названию файла - "tftpl".
+
+В директории с проектом можете ознакомится со скриптом - user_data.sh.tftpl.
+
+Тут приведем только некоторые примеры. Вот кусочек кода скрипта:
+
+export SSH_PORT=${ssh_port}
+
+данная переменная - "${ssh_port}" определяется в файле variables.tf:
+
+variable "ssh_port" {}
+
+которая в данном случае берет переменную из окружения:
+
+export TF_VAR_ssh_port=<your ssh port number>
+
+В файле main.tf мы указывали файл шаблон с переменными, которые должны будут использованы
+в скрипте:
+
+user_data_base64 = base64encode(templatefile("./user_data.sh.tftpl",
+{
+  ...
+  ssh_port = var.ssh_port,
+  ...
+}
+))
+
+Тут есть нюанс, в дополнение к функции "templatefile" мы использовали - "base64encode".
+Данная функция нужно для преобразования шиблона в base64 кодировку.
+
+Вот еще один пример. В скрипте есть такие строчки:
+
+%{ for p in pkgs ~}
+yum install ${p} -y
+%{ endfor ~}
+
+Переменная - pkgs - это переменная типа list, которая определеная в файле variables.tf.
+В данный список мы указали php пакеты, которые должны будут установлены.
+
+Опять же, в файле main.tf мы определили данную переменную:
+
+user_data_base64 = base64encode(templatefile("./user_data.sh.tftpl",
+{
+  ...
+  pkgs = var.pkgs,
+  ...
+}
+))
+
+При таком подходе возникает сложность, которая состоит в том, что не всегда
+очевидно какой файл сгенерируется. Вдруг мы там сделали ошибку. Для решение этой сложности
+есть команда - console.
 
 Проверить файл шаблона, а именно, правильно ли он поставит переменные.
+На выходе мы получис наш скрипт, но с указанными значениями переменных.
 
 $ terraform console
 
 templatefile("./user_data.sh.tftpl", {hostname = var.hostname, timezone = var.timezone, ssh_port = var.ssh_port, mysql_repo = var.mysql_repo, mysql_root_pass = var.mysql_root_pass, mysql_admin_user = var.mysql_admin_user, mysql_admin_user_pass = var.mysql_admin_user_pass, mysql_drupal_user = var.mysql_drupal_user, mysql_drupal_user_pass = var.mysql_drupal_user_pass, mysql_drupal_db = var.mysql_drupal_db, pkgs = var.pkgs, ssl_cert = var.ssl_cert, ssl_key = var.ssl_key, site_dir = var.site_dir, site_config = var.site_config})
+
+--------------------------------------------------------------------------------
+Важно:
+В консоль нужно ввести функцию в одну строчку.
+--------------------------------------------------------------------------------
+
+Далее запускаем создание нашей инфраструктуры.
+
+$ terraform plan
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+...
+
+
+$ terraform apply
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+...
+
+aws_security_group.my_lemp_ssh: Creating...
+aws_security_group.my_lemp_web: Creating...
+aws_security_group.my_lemp_ssh: Creation complete after 7s [id=sg-04ecc33418555be80]
+aws_security_group.my_lemp_web: Creation complete after 8s [id=sg-047b9be33c405b34e]
+aws_instance.my_lemp: Creating...
+aws_instance.my_lemp: Still creating... [10s elapsed]
+aws_instance.my_lemp: Still creating... [20s elapsed]
+aws_instance.my_lemp: Creation complete after 30s [id=i-0465f3d4819a759e2]
+
+
+$ terraform destroy
+
+aws_security_group.my_lemp_ssh: Refreshing state... [id=sg-04ecc33418555be80]
+aws_security_group.my_lemp_web: Refreshing state... [id=sg-047b9be33c405b34e]
+aws_instance.my_lemp: Refreshing state... [id=i-0465f3d4819a759e2]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  - destroy
+
+Terraform will perform the following actions:
+...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

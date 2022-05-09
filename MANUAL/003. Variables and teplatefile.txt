@@ -1,0 +1,261 @@
+--------------------------------------------------
+Использование переменных и шаблонов (templatefile)
+--------------------------------------------------
+
+https://www.terraform.io/language/values/variables
+https://www.terraform.io/language/functions/templatefile
+https://www.terraform.io/language/functions/base64encode
+https://www.terraform.io/language/functions/merge
+
+Создадим новый проект:
+
+$ mkdir 003_Create_LEMP_templatefile; cd 003_Create_LEMP_templatefile/
+
+Экспортируем все необходимые переменные.
+
+$ export AWS_ACCESS_KEY_ID=<your access key id>
+$ export AWS_SECRET_ACCESS_KEY=<your secret access key>
+$ export AWS_DEFAULT_REGION=<your default region>
+
+$ export TF_VAR_ssh_port=<your custome ssh port number>
+$ export TF_VAR_mysql_root_pass=<your mysql root password>
+$ export TF_VAR_mysql_admin_user=<your mysql admin username>
+$ export TF_VAR_mysql_admin_user_pass=<your mysql admin password>
+$ export TF_VAR_mysql_drupal_user=<your mysql drupal username>
+$ export TF_VAR_mysql_drupal_user_pass=<your mysql drupal user password>
+$ export TF_VAR_mysql_drupal_db=<your mysql drupal database>
+$ export TF_VAR_site_dir=<your prefix site directory>
+
+
+$ terraform init
+
+Опять же, изучать переменные и шаблоны будем на примере создания LEMP к которому
+будут привязаны 2 ново созданные группы безопасности.
+
+Для начала создадим отдельный файл с переменными. Это - best practice.
+
+$ touch ./variables.tf
+
+С содержимым данного файла можно ознакомиться в директории с проектом.
+
+У нас есть переменные, которые мы можем "показывать" в нашем проекте, а есть,
+которые мы не хотим "показывать". Как бы там нибыло, мы должны определить все переменные.
+Просто, те переменные, которые мы будем брать из переменных окружения мы определяем как пустые.
+
+Стоит упомянуть, что переменные типа list (в нашем случае переменная имеет имя - pkgs)
+и map (в нашем случае переменная имеет имя - template_tags) очень похожи.
+Отличия в том, что list - это просто список, а map - имеет ключ и значение.
+
+Переменные типа - string и number понятны без объяснения.
+
+-------------------------------------------------------------------------------
+Консолидируем по переменным:
+
+Для того, чтобы использовать переменные окружения, их нужно определить, сделать
+экспорт и использовать.
+
+Например:
+
+$ export TF_VAR_ssh_port=<port number>
+
+$ nano variables.tf
+
+variable "ssh_port" {}
+
+$ nano main.tf
+
+resource "aws_security_group" "my_lemp_ssh" {
+  ...
+  ingress {
+    ...
+    from_port        = var.ssh_port
+    to_port          = var.ssh_port
+    ...
+  }
+...
+}
+
+
+Для того, чтобы использовать переменные, их нужно определить и использовать.
+
+Например:
+
+$ nano variables.tf
+
+variable "ami" {
+  type = string
+  default = "ami-05f5f4f906feab6a7"
+}
+
+$ nano main.tf
+
+resource "aws_instance" "my_lemp" {
+  ami = var.ami
+  ...
+}
+-------------------------------------------------------------------------------
+
+Создаем ft файл для ресурсов
+
+$ touch ./main.tf
+
+С содержимым данного файла можно ознакомиться в директории с проектом.
+
+Как мы уже говорили, обращаемся к переменным с помощью - var.<variable name>.
+
+Тут стоит остановиться на конструкции:
+
+tags = merge(
+  var.template_tags,
+  {
+    Name = "my_lemp_${var.template_tags["Env"]}"
+  }
+)
+
+Т.к. у нас есть теги одинаковый для всех ресурсов, то их удобно объявить в переменной
+(в нашем случае с именем - template_tags), как мы и сделали. Но, у нас есть тэг отличающиеся
+в зависимости от ресурсов (в нашем случае тэг - Name).
+
+Для этого мы использовали функцию - merge. Она для объединения. Т.е. мы объединяем
+два map. Одна объявлена с помощью переменной, а вторая map указана непосредственно
+в функции.
+
+Вот пример:
+
+tags = merge(
+  var.template_tags,
+  {
+    Name = "my_lemp_web"
+  }
+)
+
+Так же примечательна конструкция:
+
+Name = "my_lemp_${var.template_tags["Env"]}"
+
+Тут мы указали имя (my_lemp_) + суффикс (${var.template_tags["Env"]}),
+который берется из переменной template_tags, а именно из ключа - Env.
+
+
+Теперь, по поводу шаблонов (templatefile).
+В прошлый раз мы использовали функцию - file("<path to the shell script>").
+Таким образом мы использовали статический файл (скрипт) для установки LEMP.
+
+Но можно использовать не статический файл, а динамически создаваемый (шаблоны).
+Для чего это может понадобится? Например, в нашем случае в скрипте используются
+переменные, в которых должны быть определены пароли для базы данных. Эти переменные
+не хочется указывать в скрипте в плейн тексте. Поэтому мы будем использовать шаблон.
+
+Вот как он используется:
+
+user_data = templatefile("<path to temple file>", {var1 = <value>, var2 = <value>, ... })
+
+Тут, переменные которые будут использоваться в шаблоне (скрипте).
+
+Шаблон - это обычный скрипт на shell, но мы можем использовать там переменные,
+которые могут быть использованы terraform'ом. Бест практис,
+добавлять суффикс к названию файла - "tftpl".
+
+В директории с проектом можете ознакомится со скриптом - user_data.sh.tftpl.
+
+Тут приведем только некоторые примеры. Вот кусочек кода скрипта:
+
+export SSH_PORT=${ssh_port}
+
+данная переменная - "${ssh_port}" определяется в файле variables.tf:
+
+variable "ssh_port" {}
+
+которая в данном случае берет переменную из окружения:
+
+export TF_VAR_ssh_port=<your ssh port number>
+
+В файле main.tf мы указывали файл шаблон с переменными, которые должны будут использованы
+в скрипте:
+
+user_data_base64 = base64encode(templatefile("./user_data.sh.tftpl",
+{
+  ...
+  ssh_port = var.ssh_port,
+  ...
+}
+))
+
+Тут есть нюанс, в дополнение к функции "templatefile" мы использовали - "base64encode".
+Данная функция нужно для преобразования шиблона в base64 кодировку.
+
+Вот еще один пример. В скрипте есть такие строчки:
+
+%{ for p in pkgs ~}
+yum install ${p} -y
+%{ endfor ~}
+
+Переменная - pkgs - это переменная типа list, которая определеная в файле variables.tf.
+В данный список мы указали php пакеты, которые должны будут установлены.
+
+Опять же, в файле main.tf мы определили данную переменную:
+
+user_data_base64 = base64encode(templatefile("./user_data.sh.tftpl",
+{
+  ...
+  pkgs = var.pkgs,
+  ...
+}
+))
+
+При таком подходе возникает сложность, которая состоит в том, что не всегда
+очевидно какой файл сгенерируется. Вдруг мы там сделали ошибку. Для решение этой сложности
+есть команда - console.
+
+Проверить файл шаблона, а именно, правильно ли он поставит переменные.
+На выходе мы получис наш скрипт, но с указанными значениями переменных.
+
+$ terraform console
+
+templatefile("./user_data.sh.tftpl", {hostname = var.hostname, timezone = var.timezone, ssh_port = var.ssh_port, mysql_repo = var.mysql_repo, mysql_root_pass = var.mysql_root_pass, mysql_admin_user = var.mysql_admin_user, mysql_admin_user_pass = var.mysql_admin_user_pass, mysql_drupal_user = var.mysql_drupal_user, mysql_drupal_user_pass = var.mysql_drupal_user_pass, mysql_drupal_db = var.mysql_drupal_db, pkgs = var.pkgs, ssl_cert = var.ssl_cert, ssl_key = var.ssl_key, site_dir = var.site_dir, site_config = var.site_config})
+
+--------------------------------------------------------------------------------
+Важно:
+В консоль нужно ввести функцию в одну строчку.
+--------------------------------------------------------------------------------
+
+Далее запускаем создание нашей инфраструктуры.
+
+$ terraform plan
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+...
+
+
+$ terraform apply
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+...
+
+aws_security_group.my_lemp_ssh: Creating...
+aws_security_group.my_lemp_web: Creating...
+aws_security_group.my_lemp_ssh: Creation complete after 7s [id=sg-04ecc33418555be80]
+aws_security_group.my_lemp_web: Creation complete after 8s [id=sg-047b9be33c405b34e]
+aws_instance.my_lemp: Creating...
+aws_instance.my_lemp: Still creating... [10s elapsed]
+aws_instance.my_lemp: Still creating... [20s elapsed]
+aws_instance.my_lemp: Creation complete after 30s [id=i-0465f3d4819a759e2]
+
+
+$ terraform destroy
+
+aws_security_group.my_lemp_ssh: Refreshing state... [id=sg-04ecc33418555be80]
+aws_security_group.my_lemp_web: Refreshing state... [id=sg-047b9be33c405b34e]
+aws_instance.my_lemp: Refreshing state... [id=i-0465f3d4819a759e2]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  - destroy
+
+Terraform will perform the following actions:
+...
