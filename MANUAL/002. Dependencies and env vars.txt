@@ -18,6 +18,10 @@ $ export AWS_DEFAULT_REGION=<your default region>
 
 $ export TF_VAR_ssh_port=<your custome ssh port number>
 
+-----------
+Зависимости
+-----------
+
 Просмотрим зависимости на примере создания LEMP сервера к которому будет "привязаны"
 две новосозданные группы безопасности.
 
@@ -60,6 +64,11 @@ vpc_security_group_ids = [
 Вот data source документация например для группы безопасности -
 https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/security_group
 ********************************************
+
+------------------------------------------
+Использование перемнных окружения (TF_VAR)
+------------------------------------------
+
 
 https://www.terraform.io/language/values/variables
 

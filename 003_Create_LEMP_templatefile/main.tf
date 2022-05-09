@@ -60,6 +60,17 @@ resource "aws_security_group" "my_lemp_web" {
   description = "Allow Web traffic"
   vpc_id      = var.vpc_id
 
+  dynamic "ingress" {
+    for_each = var.ingress_my_lemp_web
+    content {
+      from_port        = ingress.value
+      to_port          = ingress.value
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = ["::/0"]
+    }
+  }
+
   ingress {
     description      = "To HTTP"
     from_port        = 80

@@ -87,6 +87,11 @@ variable "vpc_id" {
   default = "vpc-03ccdbfd7272a7584"
 }
 
+variable "ingress_my_lemp_web" {
+  type =list(number)
+  default = [8080, 4343, 8180, 8181]
+}
+
 # Other variables
 
 variable "template_tags" {
