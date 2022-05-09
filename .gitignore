@@ -8,3 +8,6 @@ secret/*
 003_Create_LEMP_templatefile/.terraform/*
 003_Create_LEMP_templatefile/terraform*
 003_Create_LEMP_templatefile/.terraform*
+004_Nearly_Zero_DownTime_LEMP_ALB/.terraform/*
+004_Nearly_Zero_DownTime_LEMP_ALB/terraform*
+004_Nearly_Zero_DownTime_LEMP_ALB/.terraform*
