@@ -1,0 +1,199 @@
+--------------------------------------------------------------------------------
+Жизненный цикл ресурсов (Life Cicle) на примере ALB, LEMP (nearly zero downtime)
+--------------------------------------------------------------------------------
+
+https://www.terraform.io/language/meta-arguments/lifecycle
+
+Есть изменения в ресурсе, которые приводят к удалению сервера и пересозданию.
+Выше мы говорили о том, что при изменении user_data ресурс сначала удаляется,
+а потом создается новый с новыми user_data. Так же, если в ресурсе изменить ami,
+то ресурс тоже пересоздастся.
+
+Есть три вида lifecycle'ов. Первые два редко используются, а вот третий частенько.
+
+Первый вид используется если есть сервера, которые оооооооочень важны.
+И их нельзя случайно удалять (пересоздавать). Как же себя защитить?
+
+Вот пример кода
+
+resource "aws_instance" "example" {
+  # ...
+  # ...
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+Есть более тонкая настройка (второй вид). Можно перечислить те параметры, которые нужно игнорировать
+при повторном apply, если они изменятся.
+
+resource "aws_instance" "example" {
+  # ...
+  # ...
+
+  lifecycle {
+    ignore_changes = ["ami", "user_data"]
+  }
+}
+
+Последний вид самый интересный. С его помощью можно сделать минимальный простой (nearly zero downtime).
+Его используют, когда все таки нужно пересоздать ресурс, но прежде создать такой же.
+
+resource "aws_instance" "example" {
+  # ...
+  # ...
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+Вот, как раз последний вид мы будем использовать при установки ALB, LEMP.
+
+Мы создадим ALB, который будет терменировать HTTPS. Так же, все запросы на HTTP
+будут перенаправляться на HTTPS.
+
+Создадим один ресурс aws_instance (LEMP), который будет зарегестрирован в
+определенной target group'е, к которой привязан наш ALB.
+
+Укажем  create_before_destroy в данном instance'е. Это будет означать,
+что если мы изменим, например ami, то сначала создастся новый ec2 instance, а уже потом удалится "старый".
+Таким образом у нас будет минимально возможный простой в нашем положении.
+
+Если бы мы не использовали lifecycle, то "старый" ec2 intsance удалился, а потом создался "новый".
+
+$ mkdir ./004_Nearly_Zero_DownTime_LEMP_ALB; cd ./004_Nearly_Zero_DownTime_LEMP_ALB
+
+$ export AWS_ACCESS_KEY_ID=<your access key id>
+$ export AWS_SECRET_ACCESS_KEY=<your secret access key>
+$ export AWS_DEFAULT_REGION=<your default region>
+
+$ export TF_VAR_ssh_port=<your custome ssh port number>
+$ export TF_VAR_mysql_root_pass=<your mysql root password>
+$ export TF_VAR_mysql_admin_user=<your mysql admin username>
+$ export TF_VAR_mysql_admin_user_pass=<your mysql admin password>
+$ export TF_VAR_mysql_drupal_user=<your mysql drupal username>
+$ export TF_VAR_mysql_drupal_user_pass=<your mysql drupal user password>
+$ export TF_VAR_mysql_drupal_db=<your mysql drupal database>
+$ export TF_VAR_site_dir=<your prefix site directory>
+
+$ terraform init
+
+С файлом variables.tf и main.tf можно ознакомится в директории с проектом.
+
+В файле variables.tf нет ничего не обычного, кроме переменной:
+
+variable "health_check" {
+   type = map
+   default = {
+     healthy_threshold = "3"
+     interval = "10"
+     protocol = "HTTP"
+     timeout = "2"
+     unhealthy_threshold = "2"
+     port = "80"
+  }
+}
+
+мы данный тип переменной знаем и использовалии ранее (в определении тэгов), но
+в файле main мы использовали данную переменную по новому:
+
+resource "aws_lb_target_group" "my_lemp_alb_tg" {
+..
+
+  health_check {
+    enabled = true
+    healthy_threshold = var.health_check["healthy_threshold"]
+    interval = var.health_check["interval"]
+    protocol = var.health_check["protocol"]
+    timeout = var.health_check["timeout"]
+    unhealthy_threshold = var.health_check["unhealthy_threshold"]
+    port = var.health_check["port"]
+  }
+
+т.к. map это ключ-значение, то чтобы указать определенное значение, нужно указать переменную и ее ключ.
+Например:
+
+interval = var.health_check["interval"]
+
+
+
+Далее пробежимся по файлу main.ft более детально.
+
+
+Как мы уже упоминали ранее, мы создали ресурс aws_instance (my_lemp), по id которого будем
+его регестрировать в target group'е. Тут ничего нового, кроме как
+
+subnet_id = var.all_subnet_id[0]
+
+у нас есть переменная - all_subnet_id в которую мы поместили спиок всех subnets'ов
+(в нашем случае каждая sunet находится в своей AZ) в данной VPC.
+Чтобы выбрать одно значение из списка, мы указали номер - 0 т.е. первое значение в списке.
+
+Для чего мы поместили список всех subnets'ов мы расскажем позже.
+
+Так же в данном ресурсе мы указали
+
+lifecycle {
+  create_before_destroy = true
+}
+
+эта запись, говорит о том, что прежде чем пересоздать данный ресурс, нужно его сперва создать.
+
+Ну, и ознакомится со скриптом для user data - user_data_http.sh.tftpl можно так же
+в директории с проектом.
+
+
+Далее мы создали ресурс aws_lb (my_lemp_alb). Указали ему id группы безопасности, которую
+мы создадим позже:
+
+security_groups    = [aws_security_group.my_lemp_alb_sg.id]
+
+и указали все наши subnets'сы
+
+subnets            = var.all_subnet_id
+
+Для чего это делать? У нас же один ресурс только. Все дело в том, что ALB дожен
+пренадлежать более чем одной AZ. Поэтому мы решили указать все подсети, которые находятся
+в своих AZ.
+
+
+Далее, мы создали ресурс aws_lb_target_group (my_lemp_alb_tg) для создания target group'ы.
+В которую мы поместим ec2 instance.
+
+
+С помощью ресурса aws_lb_target_group_attachment (my_lemp_alb_tg_attach) мы указали,
+что "наша" target group'а должна будет регестрировать "наш" ec2 instance.
+
+
+
+Далее, мы создали listeners'ы для нашего ALB - aws_lb_listener (my_lemp_alb_listener_80,
+my_lemp_alb_listener_443). В первом ресурсе мы сделали редирект на HTTPS.
+Во втором listener'е мы указали, что все запросы идут в "нашу" target group'у.
+
+Так же мы указали ранее созданный в Certificate Manager'е сертификат для HTTPS.
+
+Далее мы создали ресурсы групп безопасности. Одна группа для ALB, которая принемает
+трафик от всех на 80 и 443 порты. Так же сделали группы безопасности для ec2 instance'а,
+одна пропускают весь трафик от ALB, а  вторая от всех на SSH порты.
+
+Теперь можно запустить:
+
+
+$ terraform plan
+
+$ terraform apply
+
+
+Теперь давайте заменим, например aim для ec2 instance'а.
+
+Снова запускаем
+
+$ terraform plan
+
+$ terraform apply
+
+Если паралельно посмотреть в AWS консоль, то можно заметить, что сперва создается
+и регестрируется в target group ec2 instance с "новым" ami, а уже потом удаляется
+регестрация и удаляется ec2 instance со "старым" ami.
