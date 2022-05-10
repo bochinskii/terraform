@@ -45,7 +45,8 @@ variable "site_config" {
 
 variable "ami" {
   type = string
-  default = "ami-05f5f4f906feab6a7"
+  #default = "ami-05f5f4f906feab6a7"
+  default = "ami-09439f09c55136ecf"
 }
 
 variable "instance_type" {

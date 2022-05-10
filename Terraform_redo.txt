@@ -782,3 +782,123 @@ Terraform used the selected providers to generate the following execution plan. 
 
 Terraform will perform the following actions:
 ...
+
+
+
+
+
+
+
+--------------------------------------------------------------------------------
+Жизненный цикл ресурсов (Life Cicle) на примере ALB, LEMP (nearly zero downtime)
+--------------------------------------------------------------------------------
+
+https://www.terraform.io/language/meta-arguments/lifecycle
+
+Есть изменения в ресурсе, которые приводят к удалению сервера и пересозданию.
+Выше мы говорили о том, что при изменении user_data ресурс сначала удаляется,
+а потом создается новый с новыми user_data. Так же, если в ресурсе изменить ami,
+то ресурс тоже пересоздастся.
+
+Есть три вида lifecycle'ов. Первые два редко используются, а вот третий частенько.
+
+Первый вид используется если есть сервера, которые оооооооочень важны.
+И их нельзя случайно удалять (пересоздавать). Как же себя защитить?
+
+Вот пример кода
+
+resource "aws_instance" "example" {
+  # ...
+  # ...
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+Есть более тонкая настройка (второй вид). Можно перечислить те параметры, которые нужно игнорировать
+при повторном apply, если они изменятся.
+
+resource "aws_instance" "example" {
+  # ...
+  # ...
+
+  lifecycle {
+    ignore_changes = ["ami", "user_data"]
+  }
+}
+
+Последний вид самый интересный. С его помощью можно сделать минимальный простой (nearly zero downtime).
+Его используют, когда все таки нужно пересоздать ресурс, но прежде создать такой же.
+
+resource "aws_instance" "example" {
+  # ...
+  # ...
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+Вот, как раз последний вид мы будем использовать при установки ALB, LEMP.
+
+Мы создадим ALB, который будет терменировать HTTPS. Так же, все запросы на HTTP
+будут перенаправляться на HTTPS.
+
+Создадим один ресурс aws_instance (LEMP), который будет зарегестрирован в
+определенной target group'е, к которой привязан наш ALB.
+
+Укажем  create_before_destroy в данном instance'е. Это будет означать,
+что если мы изменим, например ami, то сначала создастся новый ec2 instance, а уже потом удалится "старый".
+Таким образом у нас будет минимально возможный простой в нашем положении.
+
+Если бы мы не использовали lifecycle, то "старый" ec2 intsance удалился, а потом создался "новый".
+
+$ mkdir ./004_Nearly_Zero_DownTime_LEMP_ALB; cd ./004_Nearly_Zero_DownTime_LEMP_ALB
+
+С файлом variables.tf и main.tf можно ознакомится в директории с проектом.
+
+В файле variables.tf нет ничего не обычного, кроме переменной:
+
+variable "health_check" {
+   type = map
+   default = {
+     healthy_threshold = "3"
+     interval = "10"
+     protocol = "HTTP"
+     timeout = "2"
+     unhealthy_threshold = "2"
+     port = "80"
+  }
+}
+
+мы данный тип переменной знаем и использовалии ранее (в определении тэгов), но
+в файле main мы использовали данную переменную по новому:
+
+resource "aws_lb_target_group" "my_lemp_alb_tg" {
+..
+
+  health_check {
+    enabled = true
+    healthy_threshold = var.health_check["healthy_threshold"]
+    interval = var.health_check["interval"]
+    protocol = var.health_check["protocol"]
+    timeout = var.health_check["timeout"]
+    unhealthy_threshold = var.health_check["unhealthy_threshold"]
+    port = var.health_check["port"]
+  }
+
+т.к. map это ключ-значение, то чтобы указать определенное значение, нужно указать переменную и ее ключ.
+Например:
+
+interval = var.health_check["interval"]
+
+
+
+Далее пробежимся по файлу main.ft более детально.
+
+
+
+
+
+--------------------------------

@@ -110,11 +110,14 @@ resource "aws_lb_listener" "my_lemp_alb_listener_80" {
 
   default_action {
     type = "redirect"
+    # type = "forward"
+    # target_group_arn = aws_lb_target_group.my_lemp_alb_tg.arn
     redirect {
       port        = "443"
       protocol    = "HTTPS"
       status_code = "HTTP_301"
     }
+
   }
 }
 
