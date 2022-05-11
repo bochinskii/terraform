@@ -11,3 +11,6 @@ secret/*
 004_Nearly_Zero_DownTime_LEMP_ALB/.terraform/*
 004_Nearly_Zero_DownTime_LEMP_ALB/terraform*
 004_Nearly_Zero_DownTime_LEMP_ALB/.terraform*
+005_Data_Sources/.terraform/*
+005_Data_Sources/terraform*
+005_Data_Sources/.terraform*

@@ -1,0 +1,320 @@
+--------------------------------
+Получение данных из Data Sources
+--------------------------------
+
+Мы уже использовали Data Sources ранее. Когда создавали ресурсы и указывали из id
+в другом ресурсе. Но можно так же "вытаскивать" информацию из ресурсов, которые мы не создавали
+в проекте.
+
+На примере будет понятней.
+
+$ mkdir ./005_Data_Sources; cd ./005_Data_Sources
+
+$ export AWS_ACCESS_KEY_ID=<your access key id>
+$ export AWS_SECRET_ACCESS_KEY=<your secret access key>
+$ export AWS_DEFAULT_REGION=<your default region>
+
+$ export TF_VAR_ssh_port=<your custome ssh port number>
+$ export TF_VAR_mysql_root_pass=<your mysql root password>
+$ export TF_VAR_mysql_admin_user=<your mysql admin username>
+$ export TF_VAR_mysql_admin_user_pass=<your mysql admin password>
+$ export TF_VAR_mysql_drupal_user=<your mysql drupal username>
+$ export TF_VAR_mysql_drupal_user_pass=<your mysql drupal user password>
+$ export TF_VAR_mysql_drupal_db=<your mysql drupal database>
+$ export TF_VAR_site_dir=<your prefix site directory>
+
+Оставим "за кадром" создание конфигурации провайдера.
+
+$ terraform init
+
+$ touch data_sources.tf
+
+Ознакомится с данным файлом можно в директории с проектом.
+
+----------------
+Информация о AZs
+----------------
+
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/availability_zones
+
+Рассмотрим вот эти строчки:
+
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+output "data_aws_availability_zones_available"{
+  value = data.aws_availability_zones.available
+}
+
+data - эта конфигурация говорит о том, что мы вытаскиваем информацию обо всех
+AZ, в нашем регионе.
+
+state = "available" - это фильтр, т.к. вытащить всю информацию для AZ, которые доступны.
+
+С помощью output мы выводим всю информацию на экран
+
+$ terraform plan
+
+Changes to Outputs:
+  + data_aws_availability_zones_available = {
+      + all_availability_zones = null
+      + exclude_names          = null
+      + exclude_zone_ids       = null
+      + filter                 = null
+      + group_names            = [
+          + "eu-central-1",
+        ]
+      + id                     = "eu-central-1"
+      + names                  = [
+          + "eu-central-1a",
+          + "eu-central-1b",
+          + "eu-central-1c",
+        ]
+      + state                  = "available"
+      + zone_ids               = [
+          + "euc1-az2",
+          + "euc1-az3",
+          + "euc1-az1",
+        ]
+    }
+
+Посмотрев всю информацию, которую можно изъять из Data Source или посмотреть ее в документации,
+можно вывести что-то определенное:
+
+output "data_aws_availability_zones_available_names"{
+  value = data.aws_availability_zones.available.names
+}
+
+$ terraform plan
+
+...
++ data_aws_availability_zones_available_names = [
+      + "eu-central-1a",
+      + "eu-central-1b",
+      + "eu-central-1c",
+    ]
+
+Или можно вывести еще определенней :)
+
+output "data_aws_availability_zones_available_first_name"{
+  value = data.aws_availability_zones.available.names[0]
+}
+
+0 - это номер элемента в списке
+
+
+$ terraform plan
+
+...
++ data_aws_availability_zones_available_first_name = "eu-central-1a"
+...
+
+В файле для примера, есть те Data Sources, которые часто используются в реальных проектах.
+Можете с ними ознакомится.
+
+Так же приведу ссылки на документацию:
+
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity
+
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region
+
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/vpcs
+
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/vpc
+
+
+
+--------------------------------------
+Создание subnets'ов в существующей VPC
+--------------------------------------
+
+Как вы могли догадаться, информацию из Data Sources можно не только выводить,
+но и использовать при создании ресурсов.
+
+Для примера, допустим у нас задание: есть созданная VPC с тэгом - prod,
+нужно в ней создать 2 subnets'ы в двух разных AZ (a, b).
+
+Вы можете временно закомментировать файл data_sources.tf.
+
+Так же отметим, что для простоты, мы все описали в файле - maint.tf.
+
+Вот так мы изъяли информацию из Data Sources отфилтровав ее по тэгу - prod.
+
+data "aws_vpc" "prod" {
+  tags = {
+    Name = "prod"
+  }
+}
+
+Так же мы изъяли некторую другую информацию, которая нам понадобится.
+
+В ресурсах aws_subnet (prod_1aб prod_1b) ми использовали данную информацию.
+
+
+Так же, с помощью outputs мы вывели важную информацию, которая нам может быть понадобится
+в будущем.
+
+Выполняем:
+
+$ terraform plan
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # aws_subnet.prod_1a will be created
+  + resource "aws_subnet" "prod_1a" {
+      + arn                                            = (known after apply)
+      + assign_ipv6_address_on_creation                = false
+      + availability_zone                              = "eu-central-1a"
+      + availability_zone_id                           = (known after apply)
+      + cidr_block                                     = "10.0.0.0/24"
+      + enable_dns64                                   = false
+      + enable_resource_name_dns_a_record_on_launch    = false
+      + enable_resource_name_dns_aaaa_record_on_launch = false
+      + id                                             = (known after apply)
+      + ipv6_cidr_block_association_id                 = (known after apply)
+      + ipv6_native                                    = false
+      + map_public_ip_on_launch                        = false
+      + owner_id                                       = (known after apply)
+      + private_dns_hostname_type_on_launch            = (known after apply)
+      + tags                                           = {
+          + "Account" = "880954070217"
+          + "Name"    = "prod_eu-central-1a"
+        }
+      + tags_all                                       = {
+          + "Account" = "880954070217"
+          + "Name"    = "prod_eu-central-1a"
+        }
+      + vpc_id                                         = "vpc-030d3173063a3ea8e"
+    }
+
+  # aws_subnet.prod_1b will be created
+  + resource "aws_subnet" "prod_1b" {
+      + arn                                            = (known after apply)
+      + assign_ipv6_address_on_creation                = false
+      + availability_zone                              = "eu-central-1b"
+      + availability_zone_id                           = (known after apply)
+      + cidr_block                                     = "10.0.1.0/24"
+      + enable_dns64                                   = false
+      + enable_resource_name_dns_a_record_on_launch    = false
+      + enable_resource_name_dns_aaaa_record_on_launch = false
+      + id                                             = (known after apply)
+      + ipv6_cidr_block_association_id                 = (known after apply)
+      + ipv6_native                                    = false
+      + map_public_ip_on_launch                        = false
+      + owner_id                                       = (known after apply)
+      + private_dns_hostname_type_on_launch            = (known after apply)
+      + tags                                           = {
+          + "Account" = "880954070217"
+          + "Name"    = "prod_eu-central-1b"
+        }
+      + tags_all                                       = {
+          + "Account" = "880954070217"
+          + "Name"    = "prod_eu-central-1b"
+        }
+      + vpc_id                                         = "vpc-030d3173063a3ea8e"
+    }
+
+Plan: 2 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + aws_subnet_prod_1a_cidr_block = "10.0.0.0/24"
+  + aws_subnet_prod_1a_id         = (known after apply)
+  + aws_subnet_prod_1b_cidr_block = "10.0.1.0/24"
+  + aws_subnet_prod_1b_id         = (known after apply)
+  + data_aws_vpc_prod_id          = "vpc-030d3173063a3ea8e"
+
+
+  $ terraform apply
+
+  Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+    + create
+
+  Terraform will perform the following actions:
+
+    # aws_subnet.prod_1a will be created
+    + resource "aws_subnet" "prod_1a" {
+        + arn                                            = (known after apply)
+        + assign_ipv6_address_on_creation                = false
+        + availability_zone                              = "eu-central-1a"
+        + availability_zone_id                           = (known after apply)
+        + cidr_block                                     = "10.0.0.0/24"
+        + enable_dns64                                   = false
+        + enable_resource_name_dns_a_record_on_launch    = false
+        + enable_resource_name_dns_aaaa_record_on_launch = false
+        + id                                             = (known after apply)
+        + ipv6_cidr_block_association_id                 = (known after apply)
+        + ipv6_native                                    = false
+        + map_public_ip_on_launch                        = false
+        + owner_id                                       = (known after apply)
+        + private_dns_hostname_type_on_launch            = (known after apply)
+        + tags                                           = {
+            + "Account" = "880954070217"
+            + "Name"    = "prod_eu-central-1a"
+          }
+        + tags_all                                       = {
+            + "Account" = "880954070217"
+            + "Name"    = "prod_eu-central-1a"
+          }
+        + vpc_id                                         = "vpc-030d3173063a3ea8e"
+      }
+
+    # aws_subnet.prod_1b will be created
+    + resource "aws_subnet" "prod_1b" {
+        + arn                                            = (known after apply)
+        + assign_ipv6_address_on_creation                = false
+        + availability_zone                              = "eu-central-1b"
+        + availability_zone_id                           = (known after apply)
+        + cidr_block                                     = "10.0.1.0/24"
+        + enable_dns64                                   = false
+        + enable_resource_name_dns_a_record_on_launch    = false
+        + enable_resource_name_dns_aaaa_record_on_launch = false
+        + id                                             = (known after apply)
+        + ipv6_cidr_block_association_id                 = (known after apply)
+        + ipv6_native                                    = false
+        + map_public_ip_on_launch                        = false
+        + owner_id                                       = (known after apply)
+        + private_dns_hostname_type_on_launch            = (known after apply)
+        + tags                                           = {
+            + "Account" = "880954070217"
+            + "Name"    = "prod_eu-central-1b"
+          }
+        + tags_all                                       = {
+            + "Account" = "880954070217"
+            + "Name"    = "prod_eu-central-1b"
+          }
+        + vpc_id                                         = "vpc-030d3173063a3ea8e"
+      }
+
+  Plan: 2 to add, 0 to change, 0 to destroy.
+
+  Changes to Outputs:
+    + aws_subnet_prod_1a_cidr_block = "10.0.0.0/24"
+    + aws_subnet_prod_1a_id         = (known after apply)
+    + aws_subnet_prod_1b_cidr_block = "10.0.1.0/24"
+    + aws_subnet_prod_1b_id         = (known after apply)
+    + data_aws_vpc_prod_id          = "vpc-030d3173063a3ea8e"
+
+  Do you want to perform these actions?
+    Terraform will perform the actions described above.
+    Only 'yes' will be accepted to approve.
+
+    Enter a value: yes
+
+  aws_subnet.prod_1a: Creating...
+  aws_subnet.prod_1b: Creating...
+  aws_subnet.prod_1b: Creation complete after 3s [id=subnet-0798dbc8563630efd]
+  aws_subnet.prod_1a: Creation complete after 3s [id=subnet-06cd3f2d09631dd2c]
+
+  Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
+
+  Outputs:
+
+  aws_subnet_prod_1a_cidr_block = "10.0.0.0/24"
+  aws_subnet_prod_1a_id = "subnet-06cd3f2d09631dd2c"
+  aws_subnet_prod_1b_cidr_block = "10.0.1.0/24"
+  aws_subnet_prod_1b_id = "subnet-0798dbc8563630efd"
+  data_aws_vpc_prod_id = "vpc-030d3173063a3ea8e"
