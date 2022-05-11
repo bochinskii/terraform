@@ -14,3 +14,6 @@ secret/*
 005_Data_Sources/.terraform/*
 005_Data_Sources/terraform*
 005_Data_Sources/.terraform*
+006_Zero_DownTile_LEMP_ALB_ASG/.terraform/*
+006_Zero_DownTile_LEMP_ALB_ASG/terraform*
+006_Zero_DownTile_LEMP_ALB_ASG/.terraform*
