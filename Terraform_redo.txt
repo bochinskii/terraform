@@ -22,9 +22,6 @@ https://learn.hashicorp.com/tutorials/terraform/install-cli
 - terraform-fmr;
 - linter-terraform-syntacs
 
-
-
-
 ----------------------------------------------------------------------
 Инициализация проекта.
 Создание, удаление и изменение ресурса в AWS на примере EC2 instance'а
@@ -354,8 +351,6 @@ $ terraform destroy
 tf файлах, а потом выполнить команду - apply.
 
 
-
-
 -----------------------------------------------
 Зависимости и использование перемнных окружения
 -----------------------------------------------
@@ -380,10 +375,10 @@ $ export TF_VAR_ssh_port=<your custome ssh port number>
 Зависимости
 -----------
 
-Просмотрим зависимости на примере создания LEMP сервера к которому будет "привязаны"
-две новосозданные группы безопасности.
+Существуют автоматические зависимости и не автоматические.
 
-$ terraform init
+Автоматические зависимости посмотрим на примере создания LEMP сервера к которому будет "привязаны"
+две новосозданные группы безопасности.
 
 $ touch main.tf
 
@@ -391,7 +386,7 @@ $ touch main.tf
 в директории с проектом.
 
 В tf файле мы сперва укзали ресур aws_instance, а потом ресурсы aws_security_group.
-Тем не менее мы создали автоматическую связь между aws_instance и aws_security_group
+Тем не менее мы создали автоматическую зависимость между aws_instance и aws_security_group
 путем указания - aws_security_group.my_lemp_web.id и aws_security_group.my_lemp_ssh.id:
 
 vpc_security_group_ids = [
@@ -399,7 +394,7 @@ vpc_security_group_ids = [
   aws_security_group.my_lemp_ssh.id
 ]
 
-т.е. terraform просканировал tf файл и выяснил, что есть связь между ресурсами и таким образом
+т.е. terraform просканировал tf файл и выяснил, что есть зависимость между ресурсами и таким образом
 сначала создал группы безопасности, а потом уже ресурс с ec2 instance'ом.
 
 ********************************************
@@ -422,6 +417,39 @@ vpc_security_group_ids = [
 Вот data source документация например для группы безопасности -
 https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/security_group
 ********************************************
+
+Не автоматические зависимости рассмотрим без практики.
+
+Они используются, когда нет возможности использовать автоматические.
+
+Например, нужно создать три ec2 instance'а, но чтобы один из них (database) создался первый.
+А еще один из них (web) должен создасться позже всех.
+
+resource "aws_instance" "web" {
+  ...
+  depends_on = [
+    aws_instance.database,
+    aws_instance.application,
+  ]
+
+}
+
+resource "aws_instance" "application" {
+  ...
+  depends_on = [
+    aws_instance.database,
+  ]
+
+}
+
+resource "aws_instance" "database" {
+  ...
+
+}
+
+Таким образом terraform "увидит", что database не от кого не зависит и создасться
+первым. Ресурс web зависит от двух ресурсов (database, application), поэтому он создастся
+последним.
 
 ------------------------------------------
 Использование перемнных окружения (TF_VAR)
@@ -451,27 +479,100 @@ LEMP. За это отвечает параметр - user_data_base64 в рес
 Так же важным моментом является то, что если мы изменим user data скрипт и запустим
 apply снова, что terraform поймет, что измнился скрипт и пересоздаст ec2 instance.
 
+
+----------------------------------------------
+Вывод на экран информации о ресурсах (outputs)
+----------------------------------------------
+
+https://www.terraform.io/language/values/outputs
+
+https://www.terraform.io/cli/commands/output
+
+Есть вещи, которые нужно вывести на экран после создания. На самом деле outputs
+могут еще использоваться для того, чтобы их значение занести в переменные.
+
+Сейчас мы рассмотрим, только вывод на экран. Зачем это может понадобится?
+Вот в нашем примере мы создали LEMP. Теперь, нам нужно зайти по его
+ip или dns. Можно воспользоваться AWS консолью. Но, что если у нас нет доступа
+к консоли.
+
+В файле ./outputs.tf находятся наши outputs'ы. Мы выведем публичный ip адрес,
+публичный dns, ну и просто, выведем, arn ec2 instance'а.
+
+Вот пример:
+
+output "aws_instance_my_lemp_public_ip" {
+  value = aws_instance.my_lemp.public_ip
+}
+
+aws_instance_my_lemp_public_ip - это произвольное имя output'а.
+
+Эта конструкция нам известна:
+
+value = aws_instance.my_lemp.public_ip
+
+Напомню, что все данные, которые можно вывести можно найти в документации, в
+разделе data sources. Или когда выполняете команду - plan. На экран выводится информация
+о ресурсах. Все что там указано, можно вывести с помощью outputs'ов.
+
+
 $ terraform init
 
 $ terraform plan
 
 $ terraform apply
 
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+...
+Plan: 3 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + aws_instance_my_lemp_arn        = (known after apply)
+  + aws_instance_my_lemp_public_dns = (known after apply)
+  + aws_instance_my_lemp_public_ip  = (known after apply)
+  Do you want to perform these actions?
+    Terraform will perform the actions described above.
+    Only 'yes' will be accepted to approve.
+
+    Enter a value: yes
+
+aws_security_group.my_lemp_web: Creating...
+aws_security_group.my_lemp_ssh: Creating...
+aws_security_group.my_lemp_web: Creation complete after 7s [id=sg-052d8b7d369e8b024]
+aws_security_group.my_lemp_ssh: Creation complete after 8s [id=sg-02fcde201a9e970af]
+aws_instance.my_lemp: Creating...
+aws_instance.my_lemp: Still creating... [10s elapsed]
+aws_instance.my_lemp: Still creating... [20s elapsed]
+aws_instance.my_lemp: Still creating... [30s elapsed]
+aws_instance.my_lemp: Still creating... [40s elapsed]
+aws_instance.my_lemp: Creation complete after 49s [id=i-0907327f3c5f837d1]
+
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+
+Outputs:
+aws_instance_my_lemp_arn = "arn:aws:ec2:eu-central-1:880954070217:instance/i-0907327f3c5f837d1"
+aws_instance_my_lemp_public_dns = "ec2-54-93-118-67.eu-central-1.compute.amazonaws.com"
+aws_instance_my_lemp_public_ip = "54.93.118.67"
+
+
+Как мы видим, после того, как ресурсы создались у нас на экране вывелись значения
+"наших" outputs'ов.
+
+Кстати, после того как выполнился apply мы можем посмотреть на наши otputs'ы
+с помощью команды:
+
+$ terraform output
+aws_instance_my_lemp_arn = "arn:aws:ec2:eu-central-1:880954070217:instance/i-0907327f3c5f837d1"
+aws_instance_my_lemp_public_dns = "ec2-54-93-118-67.eu-central-1.compute.amazonaws.com"
+aws_instance_my_lemp_public_ip = "54.93.118.67"
+
+
 Не забываем, что удалить ресурсы вот так
 
 $ terraform destroy
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ----------------------------------------------------------------------
@@ -481,6 +582,8 @@ $ terraform destroy
 Создадим новый проект:
 
 $ mkdir 003_Create_LEMP_templatefile; cd 003_Create_LEMP_templatefile/
+
+Оставим "за кадром" создание конфигурации провайдера.
 
 Экспортируем все необходимые переменные.
 
@@ -496,9 +599,6 @@ $ export TF_VAR_mysql_drupal_user=<your mysql drupal username>
 $ export TF_VAR_mysql_drupal_user_pass=<your mysql drupal user password>
 $ export TF_VAR_mysql_drupal_db=<your mysql drupal database>
 $ export TF_VAR_site_dir=<your prefix site directory>
-
-
-$ terraform init
 
 Опять же, изучать переменные и шаблоны будем на примере создания LEMP к которому
 будут привязаны 2 ново созданные группы безопасности.
@@ -744,6 +844,8 @@ templatefile("./user_data.sh.tftpl", {hostname = var.hostname, timezone = var.ti
 
 Далее запускаем создание нашей инфраструктуры.
 
+$ terraform init
+
 $ terraform plan
 
 Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
@@ -782,11 +884,6 @@ Terraform used the selected providers to generate the following execution plan. 
 
 Terraform will perform the following actions:
 ...
-
-
-
-
-
 
 
 --------------------------------------------------------------------------------
@@ -988,20 +1085,3 @@ $ terraform apply
 Если паралельно посмотреть в AWS консоль, то можно заметить, что сперва создается
 и регестрируется в target group ec2 instance с "новым" ami, а уже потом удаляется
 регестрация и удаляется ec2 instance со "старым" ami.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
---------------------------------

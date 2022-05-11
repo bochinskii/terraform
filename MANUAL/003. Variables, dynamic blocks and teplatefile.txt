@@ -6,6 +6,8 @@
 
 $ mkdir 003_Create_LEMP_templatefile; cd 003_Create_LEMP_templatefile/
 
+Оставим "за кадром" создание конфигурации провайдера.
+
 Экспортируем все необходимые переменные.
 
 $ export AWS_ACCESS_KEY_ID=<your access key id>
@@ -20,9 +22,6 @@ $ export TF_VAR_mysql_drupal_user=<your mysql drupal username>
 $ export TF_VAR_mysql_drupal_user_pass=<your mysql drupal user password>
 $ export TF_VAR_mysql_drupal_db=<your mysql drupal database>
 $ export TF_VAR_site_dir=<your prefix site directory>
-
-
-$ terraform init
 
 Опять же, изучать переменные и шаблоны будем на примере создания LEMP к которому
 будут привязаны 2 ново созданные группы безопасности.
@@ -267,6 +266,8 @@ templatefile("./user_data.sh.tftpl", {hostname = var.hostname, timezone = var.ti
 --------------------------------------------------------------------------------
 
 Далее запускаем создание нашей инфраструктуры.
+
+$ terraform init
 
 $ terraform plan
 
