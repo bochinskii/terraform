@@ -144,8 +144,17 @@ lifecycle {
 
 эта запись, говорит о том, что прежде чем пересоздать данный ресурс, нужно его сперва создать.
 
-Ну, и ознакомится со скриптом для user data - user_data_http.sh.tftpl можно так же
-в директории с проектом.
+Вот эта запись говорит о том, чтобы происходило перемоздавание ec2 instance'а если изменятся
+user data:
+
+user_data_replace_on_change = true
+
+Ну, и ознакомится со скриптом для user data - user_data_http_old.sh.tftpl и user_data_http.sh.tftpl можно так же
+в директории с проектом. Они отличаются только версией drupal. Это надо нам для того, чтобы проверить
+Nearly Zero Downtime.
+
+Сперва создадим с ресурс с user_data_http_old.sh.tftpl, а потом изменим на user_data_http.sh.tftpl
+и посмотрим как заменится ресурс с минимально возможным временем ожидания.
 
 
 Далее мы создали ресурс aws_lb (my_lemp_alb). Указали ему id группы безопасности, которую
@@ -183,12 +192,7 @@ my_lemp_alb_listener_443). В первом ресурсе мы сделали р
 
 Несколько слов об outputs.tf.
 
-Вы могли бы заметить, что хорошо бы получить dns имя балансировщика.
-К сожалению, это нельзя "вытащить". Как же быть?
-
-На самом деле, если вы создаете подобную инфраструктуру как в этом примере, то
-вы можете привязать ALIASE в Route53 к данному балансировщику. Для этого нужен
-его arn. А уже из Route53 "вытащить" dns имя. Но это мы оставим за кадром.
+С помощью outputs мы получили интересующие нас данные по нашим ресурсам.
 
 
 Теперь можно запустить:
@@ -198,15 +202,45 @@ $ terraform plan
 
 $ terraform apply
 
+...
 
-Теперь давайте заменим, например aim для ec2 instance'а.
+Outputs:
 
-Снова запускаем
+aws_instance_my_lemp_public_dns = "ec2-18-185-49-15.eu-central-1.compute.amazonaws.com"
+aws_instance_my_lemp_public_ip = "18.185.49.15"
+my_lemp_alb_dns = "my-lemp-alb-179365732.eu-central-1.elb.amazonaws.com"
+target_group_arn = "arn:aws:elasticloadbalancing:eu-central-1:880954070217:targetgroup/my-lemp-alb-tg/265536a44a7ecac7"
+
+
+
+
+Теперь давайте заменим, например файл user data с user_data_http_old.sh.tftpl на user_data_http.sh.tftpl.
+
+Снова запускаем снова
 
 $ terraform plan
 
 $ terraform apply
 
+...
+
+Outputs:
+
+aws_instance_my_lemp_public_dns = "ec2-3-71-53-239.eu-central-1.compute.amazonaws.com"
+aws_instance_my_lemp_public_ip = "3.71.53.239"
+my_lemp_alb_dns = "my-lemp-alb-179365732.eu-central-1.elb.amazonaws.com"
+target_group_arn = "arn:aws:elasticloadbalancing:eu-central-1:880954070217:targetgroup/my-lemp-alb-tg/265536a44a7ecac7"
+
+
+
 Если паралельно посмотреть в AWS консоль, то можно заметить, что сперва создается
-и регестрируется в target group ec2 instance с "новым" ami, а уже потом удаляется
-регестрация и удаляется ec2 instance со "старым" ami.
+и регестрируется в target group "новый "ec2 instance, а уже потом удаляется
+регестрация и удаляется "старый" ec2 instance.
+
+
+На самом деле, очень много времени тратится на used data. Если вы посмотрите на скрипт,
+то увидите, что там много всего устанавливается. В реальных условиях, лучше сделать
+свой ami с предустановленным - lemp. Тогда будет все намного быстрее и простой
+уменьшится во много раз.
+
+$ terraform destroy

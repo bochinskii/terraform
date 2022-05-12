@@ -42,12 +42,12 @@ variable "site_config" {
 }
 
 # aws_instance variables
-
+/*
 variable "ami" {
   type = string
-  #default = "ami-05f5f4f906feab6a7"
   default = "ami-09439f09c55136ecf"
 }
+*/
 
 variable "instance_type" {
   type = string
@@ -57,11 +57,6 @@ variable "instance_type" {
 variable "key_name" {
   type = string
   default = "bochinskii_Frankfurt_2"
-}
-
-variable "availability_zone" {
-  type = string
-  default = "eu-central-1a"
 }
 
 ####### root_block_device variables
@@ -77,17 +72,20 @@ variable "volume_size" {
 }
 
 # aws_security_group variables
-
+/*
 variable "vpc_id" {
   type = string
   default = "vpc-03ccdbfd7272a7584"
 }
+*/
 
 # ASG variables
+/*
 variable "availability_zones" {
   type = list(string)
   default = ["eu-central-1a", "eu-central-1b", "eu-central-1c"]
 }
+*/
 
 # ALB variables
 
@@ -102,12 +100,12 @@ variable "health_check" {
      port = "80"
   }
 }
-
+/*
 variable "all_subnet_id" {
   type = list(string)
   default = ["subnet-000c2008b7496a3b7", "subnet-0646580d441af171c", "subnet-053fd4df99fbbb0f9"]
 }
-
+*/
 # Other variables
 
 variable "template_tags" {

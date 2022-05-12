@@ -1,9 +1,10 @@
+
 #
 # Lunch Template
 #
 resource "aws_launch_template" "my_lemp_template" {
   name                   = "my_lemp_template"
-  image_id               = var.ami
+  image_id               = data.aws_ami.amazon_linux_2_5_latest.image_id
   instance_type          = var.instance_type
   key_name               = var.key_name
 
@@ -22,7 +23,9 @@ resource "aws_launch_template" "my_lemp_template" {
     }
   }
 
-  user_data = base64encode(templatefile("./user_data_http.sh.tftpl",
+  user_data = base64encode(file("./test_v2.sh"))
+  /*
+  user_data = base64encode(templatefile("./user_data_http_old.sh.tftpl",
   {
     hostname = var.hostname,
     timezone = var.timezone,
@@ -41,6 +44,7 @@ resource "aws_launch_template" "my_lemp_template" {
     site_config = var.site_config
   }
   ))
+  */
 
   tag_specifications {
     resource_type = "instance"
@@ -63,7 +67,7 @@ resource "aws_lb" "my_lemp_alb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.my_lemp_alb_sg.id]
-  subnets            = var.all_subnet_id
+  subnets            = data.aws_subnets.all_subnets.ids
 
   tags = merge(
     var.template_tags,
@@ -113,7 +117,8 @@ resource "aws_lb_target_group" "my_lemp_alb_tg" {
   target_type = "instance"
   port        = 80
   protocol    = "HTTP"
-  vpc_id      = var.vpc_id
+  vpc_id      = data.aws_vpc.vpc_project.id
+  deregistration_delay = 10
 
   health_check {
     enabled = true
@@ -138,35 +143,73 @@ resource "aws_lb_target_group" "my_lemp_alb_tg" {
 #
 resource "aws_autoscaling_group" "my_lemp_asg" {
   name               = "my_lemp_asg"
-  availability_zones = var.availability_zones
+  availability_zones = data.aws_availability_zones.all_az.names
   desired_capacity   = 1
-  max_size           = 2
+  max_size           = 1
   min_size           = 1
 
   health_check_type  = "ELB"
 
-  #target_group_arns = aws_lb_target_group.my_lemp_alb_tg.arn
+  target_group_arns = [aws_lb_target_group.my_lemp_alb_tg.arn]
+
+  #force_delete = true
 
   launch_template {
     id      = aws_launch_template.my_lemp_template.id
     version = aws_launch_template.my_lemp_template.latest_version
-    #version = "$Latest"
   }
 
-}
+  lifecycle {
+    create_before_destroy = true
+  }
 
+  instance_refresh {
+    strategy = "Rolling"
+
+    preferences {
+      min_healthy_percentage = 100
+    }
+  }
+
+  /*
+  provisioner "local-exec" {
+    command = "./getips.sh"
+  }
+  */
+
+}
+/*
 resource "aws_autoscaling_attachment" "my_lemp_asg_attach" {
   autoscaling_group_name = aws_autoscaling_group.my_lemp_asg.id
   lb_target_group_arn    = aws_lb_target_group.my_lemp_alb_tg.arn
 }
+*/
+#
+# ASG Policy
+#
+/*
+resource "aws_autoscaling_policy" "my_lemp_asg_pol_avgcpu" {
+  name = "my_lemp_asg_pol_avgcpu"
+  policy_type = "TargetTrackingScaling"
+  autoscaling_group_name = aws_autoscaling_group.my_lemp_asg.name
 
+  target_tracking_configuration {
+    target_value = 85
+
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+
+  }
+}
+*/
 #
 # Security Groups
 #
 resource "aws_security_group" "my_lemp_alb_sg" {
   name        = "my_lemp_alb_sg"
   description = "Allow Web traffic"
-  vpc_id      = var.vpc_id
+  vpc_id      = data.aws_vpc.vpc_project.id
 
 
   ingress {
@@ -206,7 +249,7 @@ resource "aws_security_group" "my_lemp_alb_sg" {
 resource "aws_security_group" "my_lemp_web" {
   name        = "my_lemp_web"
   description = "Allow Web traffic"
-  vpc_id      = var.vpc_id
+  vpc_id      = data.aws_vpc.vpc_project.id
 
   ingress {
     description      = "All from ALB"
@@ -235,7 +278,7 @@ resource "aws_security_group" "my_lemp_web" {
 resource "aws_security_group" "my_lemp_ssh" {
   name        = "my_lemp_ssh"
   description = "Allow ssh traffic"
-  vpc_id      = var.vpc_id
+  vpc_id      = data.aws_vpc.vpc_project.id
 
   ingress {
     description      = "To SSH"

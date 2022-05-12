@@ -15,7 +15,7 @@ resource "aws_instance" "my_lemp" {
   availability_zone = var.availability_zone
   subnet_id = var.all_subnet_id[0]
 
-  user_data_base64 = base64encode(templatefile("./user_data_http.sh.tftpl",
+  user_data_base64 = base64encode(templatefile("./user_data_http_old.sh.tftpl",
   {
     hostname = var.hostname,
     timezone = var.timezone,
@@ -34,6 +34,7 @@ resource "aws_instance" "my_lemp" {
     site_config = var.site_config
   }
   ))
+  user_data_replace_on_change = true
 
   root_block_device {
     volume_type = var.volume_type
