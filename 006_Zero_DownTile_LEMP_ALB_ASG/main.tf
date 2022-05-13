@@ -23,9 +23,9 @@ resource "aws_launch_template" "my_lemp_template" {
     }
   }
 
-  user_data = base64encode(file("./test_v2.sh"))
-  /*
-  user_data = base64encode(templatefile("./user_data_http_old.sh.tftpl",
+  # user_data = base64encode(file("./test_v1.sh"))
+
+  user_data = base64encode(templatefile("./user_data_http.sh.tftpl",
   {
     hostname = var.hostname,
     timezone = var.timezone,
@@ -44,7 +44,7 @@ resource "aws_launch_template" "my_lemp_template" {
     site_config = var.site_config
   }
   ))
-  */
+
 
   tag_specifications {
     resource_type = "instance"
@@ -171,11 +171,15 @@ resource "aws_autoscaling_group" "my_lemp_asg" {
     }
   }
 
-  /*
+
   provisioner "local-exec" {
-    command = "./getips.sh"
+    command = "chmod +x ./getips.sh; ./getips.sh; chmod -x ./getips.sh"
+    environment = {
+      REGION = data.aws_region.current_region.name
+      ASG = aws_autoscaling_group.my_lemp_asg.name
+    }
   }
-  */
+
 
 }
 /*
@@ -187,14 +191,14 @@ resource "aws_autoscaling_attachment" "my_lemp_asg_attach" {
 #
 # ASG Policy
 #
-/*
+
 resource "aws_autoscaling_policy" "my_lemp_asg_pol_avgcpu" {
   name = "my_lemp_asg_pol_avgcpu"
   policy_type = "TargetTrackingScaling"
   autoscaling_group_name = aws_autoscaling_group.my_lemp_asg.name
 
   target_tracking_configuration {
-    target_value = 85
+    target_value = 98
 
     predefined_metric_specification {
       predefined_metric_type = "ASGAverageCPUUtilization"
@@ -202,7 +206,7 @@ resource "aws_autoscaling_policy" "my_lemp_asg_pol_avgcpu" {
 
   }
 }
-*/
+
 #
 # Security Groups
 #

@@ -14,14 +14,6 @@ $ export AWS_ACCESS_KEY_ID=<your access key id>
 $ export AWS_SECRET_ACCESS_KEY=<your secret access key>
 $ export AWS_DEFAULT_REGION=<your default region>
 
-$ export TF_VAR_ssh_port=<your custome ssh port number>
-$ export TF_VAR_mysql_root_pass=<your mysql root password>
-$ export TF_VAR_mysql_admin_user=<your mysql admin username>
-$ export TF_VAR_mysql_admin_user_pass=<your mysql admin password>
-$ export TF_VAR_mysql_drupal_user=<your mysql drupal username>
-$ export TF_VAR_mysql_drupal_user_pass=<your mysql drupal user password>
-$ export TF_VAR_mysql_drupal_db=<your mysql drupal database>
-$ export TF_VAR_site_dir=<your prefix site directory>
 
 Оставим "за кадром" создание конфигурации провайдера.
 

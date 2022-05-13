@@ -307,3 +307,243 @@ Terraform used the selected providers to generate the following execution plan. 
 
 Terraform will perform the following actions:
 ...
+
+
+
+
+--------------------------
+Переопределение переменных
+--------------------------
+
+Вы могли заметить, что переменные определяются в - default.
+Это значит, что они могут быть переопределены.
+
+Вот пример:
+
+Давайте, снова запустим plan в директории проекта и обратим внимание на ami и instance_type
+
+$ terraform plan
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # aws_instance.my_lemp will be created
+  + resource "aws_instance" "my_lemp" {
+      + ami                                  = "ami-05f5f4f906feab6a7"
+      + arn                                  = (known after apply)
+      + associate_public_ip_address          = (known after apply)
+      + availability_zone                    = "eu-central-1a"
+      + cpu_core_count                       = (known after apply)
+      + cpu_threads_per_core                 = (known after apply)
+      + disable_api_termination              = (known after apply)
+      + ebs_optimized                        = (known after apply)
+      + get_password_data                    = false
+      + host_id                              = (known after apply)
+      + id                                   = (known after apply)
+      + instance_initiated_shutdown_behavior = (known after apply)
+      + instance_state                       = (known after apply)
+      + instance_type                        = "t2.micro"
+      ...
+
+Теперь переопределим их:
+
+$ terraform plan -var="ami=ami-09439f09c55136ecf" -var="instance_type=t3.micro"
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # aws_instance.my_lemp will be created
+  + resource "aws_instance" "my_lemp" {
+      + ami                                  = "ami-09439f09c55136ecf"
+      + arn                                  = (known after apply)
+      + associate_public_ip_address          = (known after apply)
+      + availability_zone                    = "eu-central-1a"
+      + cpu_core_count                       = (known after apply)
+      + cpu_threads_per_core                 = (known after apply)
+      + disable_api_termination              = (known after apply)
+      + ebs_optimized                        = (known after apply)
+      + get_password_data                    = false
+      + host_id                              = (known after apply)
+      + id                                   = (known after apply)
+      + instance_initiated_shutdown_behavior = (known after apply)
+      + instance_state                       = (known after apply)
+      + instance_type                        = "t3.micro"
+      ...
+
+Вот так можно переопределять переменные
+
+
+Кстати, заметим еще одну интересную вещь. Мы так же можем переопределить переменные
+с пемощью переменных окружения, т.е.
+
+$ export TF_VAR_instance_type=t3.medium
+
+$ terraform plan
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # aws_instance.my_lemp will be created
+  + resource "aws_instance" "my_lemp" {
+      + ami                                  = "ami-05f5f4f906feab6a7"
+      + arn                                  = (known after apply)
+      + associate_public_ip_address          = (known after apply)
+      + availability_zone                    = "eu-central-1a"
+      + cpu_core_count                       = (known after apply)
+      + cpu_threads_per_core                 = (known after apply)
+      + disable_api_termination              = (known after apply)
+      + ebs_optimized                        = (known after apply)
+      + get_password_data                    = false
+      + host_id                              = (known after apply)
+      + id                                   = (known after apply)
+      + instance_initiated_shutdown_behavior = (known after apply)
+      + instance_state                       = (known after apply)
+      + instance_type                        = "t3.medium"
+
+
+Таким образом у нас в файле variables.tf переменная instance_type имела значение t2.micro,
+а мы ее переопределили с помощью переменной окружения на t3.medium
+
+Не забывайте очистить переменную, если она вам больше не нужна
+
+$ unset TF_VAR_instance_type
+
+$ echo $TF_VAR_instance_type
+
+$
+
+-------------------------------------------------
+Переопределение переменных с помощью файла tfvars
+-------------------------------------------------
+
+Переменные можно переопределять с помощью файла - terraform.tfvars. Т.е. мы
+описываем переменные в нем. Но это не так интересно. Более интересно сделать несколько
+по-другому.
+
+Создадим два файла: dev.tfvars prod.tfvars. С их содержимым можно ознакомится в директории с
+проектом.
+
+Зпустим plan и обратим внимание на значения instance_type, tags, volume_size и volume_type.
+Как мы видми ничего не переопределилось. Как было в файле variables.tf так и осталось.
+
+$ terraform plan
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # aws_instance.my_lemp will be created
+  + resource "aws_instance" "my_lemp" {
+      ...
+      + instance_type                        = "t2.micro"
+      ...
+      + tags                                 = {
+          + "Env"     = "dev"
+          + "Name"    = "my_lemp_dev"
+          + "Owner"   = "Denis Bochinskii"
+          + "Project" = "rocinante"
+        }
+      ...
+      + root_block_device {
+          + delete_on_termination = true
+          + device_name           = (known after apply)
+          + encrypted             = (known after apply)
+          + iops                  = (known after apply)
+          + kms_key_id            = (known after apply)
+          + throughput            = (known after apply)
+          + volume_id             = (known after apply)
+          + volume_size           = 10
+          + volume_type           = "gp3"
+        }
+    }
+    ...
+
+Теперь укажем файл dev.tfvars при выполнении команды plan. Как мы видм, переменные
+переопределились значениями в файле - dev.tfvars.
+
+$ terraform plan -var-file="dev.tfvars"
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # aws_instance.my_lemp will be created
+  + resource "aws_instance" "my_lemp" {
+      ...
+      + instance_type                        = "t2.nano"
+      ...
+      + tags                                 = {
+          + "Env"     = "development"
+          + "Name"    = "my_lemp_development"
+          + "Owner"   = "Denis Bochinskii"
+          + "Project" = "rocinante"
+        }
+      ...
+      + root_block_device {
+          + delete_on_termination = true
+          + device_name           = (known after apply)
+          + encrypted             = (known after apply)
+          + iops                  = (known after apply)
+          + kms_key_id            = (known after apply)
+          + throughput            = (known after apply)
+          + volume_id             = (known after apply)
+          + volume_size           = 8
+          + volume_type           = "gp2"
+        }
+    }
+    ...
+
+
+Теперь укажем файл - prod.tfvars. Как мы видим, значения переменных запимились на те,
+которые в файле - prod.tfvars.
+
+$ terraform plan -var-file="prod.tfvars"
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # aws_instance.my_lemp will be created
+  + resource "aws_instance" "my_lemp" {
+      ...
+      + instance_type                        = "t3.large"
+      ...
+      + tags                                 = {
+          + "Env"     = "prodaction"
+          + "Name"    = "my_lemp_prodaction"
+          + "Owner"   = "Denis Bochinskii"
+          + "Project" = "rocinante"
+        }
+      ...
+      + root_block_device {
+          + delete_on_termination = true
+          + device_name           = (known after apply)
+          + encrypted             = (known after apply)
+          + iops                  = (known after apply)
+          + kms_key_id            = (known after apply)
+          + throughput            = (known after apply)
+          + volume_id             = (known after apply)
+          + volume_size           = 64
+          + volume_type           = "io2"
+        }
+    }
+    ...
+
+-----------------------------
+Локальные переменные (locals)
+-----------------------------
+
+https://www.terraform.io/language/values/locals
+
+Локальные переменные тут рассматриваться не будут. Если мы будем их использовать далее,
+то об этом упоменем. Даже из официальной документации можно понять, что локальные
+переменные редко используют т.к. они "перенапрягают" код.

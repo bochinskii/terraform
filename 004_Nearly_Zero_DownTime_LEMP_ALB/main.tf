@@ -15,6 +15,8 @@ resource "aws_instance" "my_lemp" {
   availability_zone = var.availability_zone
   subnet_id = var.all_subnet_id[0]
 
+  # user_data = base64encode(file("./test_v1.sh"))
+
   user_data_base64 = base64encode(templatefile("./user_data_http_old.sh.tftpl",
   {
     hostname = var.hostname,
@@ -78,6 +80,8 @@ resource "aws_lb_target_group" "my_lemp_alb_tg" {
   port        = 80
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
+
+  deregistration_delay = 30
 
   health_check {
     enabled = true
