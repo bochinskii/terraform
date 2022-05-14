@@ -128,6 +128,7 @@ resource "aws_lb_target_group" "my_lemp_alb_tg" {
     timeout = var.health_check["timeout"]
     unhealthy_threshold = var.health_check["unhealthy_threshold"]
     port = var.health_check["port"]
+    path = var.health_check["path"]
   }
 
   tags = merge(

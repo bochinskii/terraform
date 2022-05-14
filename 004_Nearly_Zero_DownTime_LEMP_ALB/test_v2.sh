@@ -33,3 +33,6 @@ yum install nginx -y
 systemctl start nginx; sudo systemctl enable nginx
 sleep 5s
 echo "<h1>Version 2</h1>" > /usr/share/nginx/html/index.html
+
+# Health Checks
+echo "<h1>check</h1>" > /usr/share/nginx/html/check.html

@@ -17,7 +17,7 @@ resource "aws_instance" "my_lemp" {
 
   # user_data = base64encode(file("./test_v1.sh"))
 
-  user_data_base64 = base64encode(templatefile("./user_data_http_old.sh.tftpl",
+  user_data_base64 = base64encode(templatefile("./user_data_http.sh.tftpl",
   {
     hostname = var.hostname,
     timezone = var.timezone,
@@ -81,7 +81,7 @@ resource "aws_lb_target_group" "my_lemp_alb_tg" {
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
 
-  deregistration_delay = 30
+  deregistration_delay = 10
 
   health_check {
     enabled = true
@@ -91,6 +91,7 @@ resource "aws_lb_target_group" "my_lemp_alb_tg" {
     timeout = var.health_check["timeout"]
     unhealthy_threshold = var.health_check["unhealthy_threshold"]
     port = var.health_check["port"]
+    path = var.health_check["path"]
   }
 
   tags = merge(

@@ -96,6 +96,8 @@ variable "health_check" {
      timeout = "2"
      unhealthy_threshold = "2"
      port = "80"
+     path = "/check.php"
+     #path = "/check.php"
   }
 }
 
@@ -113,6 +115,7 @@ resource "aws_lb_target_group" "my_lemp_alb_tg" {
     timeout = var.health_check["timeout"]
     unhealthy_threshold = var.health_check["unhealthy_threshold"]
     port = var.health_check["port"]
+    path = var.health_check["path"]
   }
 
 т.к. map это ключ-значение, то чтобы указать определенное значение, нужно указать переменную и ее ключ.
@@ -156,7 +159,8 @@ Nearly Zero Downtime.
 --------------------------------------------------------------------------------
 Отступление:
 В директории с проектом есть более легкие скрипты для user data - test_v1.txt и
-test_v2.txt. Можно использовать их.
+test_v2.txt. Можно использовать их. Но, тогда в файле variable.tf в переменной health_check
+нужно поменять путь проверки health ckecks - path на html'евский.
 --------------------------------------------------------------------------------
 
 Сперва создадим с ресурс с user_data_http_old.sh.tftpl, а потом изменим на user_data_http.sh.tftpl
@@ -243,10 +247,18 @@ target_group_arn = "arn:aws:elasticloadbalancing:eu-central-1:880954070217:targe
 и регестрируется в target group "новый "ec2 instance, а уже потом удаляется
 регестрация и удаляется "старый" ec2 instance.
 
+Если более детально, что terraform удаляет "старый" insatnce и создает "новый".
+Далее проводит - дерегестрацию "старого" instance'а. Target group'а делает дерегестрацию
+в течении 10 секунд (deregistration_delay). Далее регестрирует "новый" insatance.
+Когда health check'и "проходят" (каждые 5 секунд, два health ckechs'а должны быть удачными)
+"новый" insatnce регестрируется в target goup'е.
 
-На самом деле, очень много времени тратится на used data. Если вы посмотрите на скрипт,
+
+На самом деле, очень много времени тратится на user data. Если вы посмотрите на скрипт,
 то увидите, что там много всего устанавливается. В реальных условиях, лучше сделать
 свой ami с предустановленным - lemp. Тогда будет все намного быстрее и простой
 уменьшится во много раз.
+
+Незабываем удалить инфраструктуру, если она вам не нужна.
 
 $ terraform destroy

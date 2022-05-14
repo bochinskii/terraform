@@ -136,9 +136,23 @@ systemctl restart nginx
 export SITE_DIR=${site_dir}
 
 mkdir -p $SITE_DIR/{www,log}
-curl -Lo /tmp/drupal.tar.gz https://www.drupal.org/download-latest/tar.gz
-#curl -Lo /tmp/drupal.tar.gz https://ftp.drupal.org/files/projects/drupal-9.3.9.tar.gz
+#curl -Lo /tmp/drupal.tar.gz https://www.drupal.org/download-latest/tar.gz
+curl -Lo /tmp/drupal.tar.gz https://ftp.drupal.org/files/projects/drupal-9.3.9.tar.gz
 tar -xzvf /tmp/drupal.tar.gz -C $SITE_DIR/www --strip-components=1
+
+# Health checks
+touch $SITE_DIR/www/check.php
+cat << EOF > $SITE_DIR/www/check.php
+<html>
+ <head>
+  <title>PHP Test</title>
+ </head>
+ <body>
+ <?php echo '<p>check</p>'; ?>
+ </body>
+</html>
+EOF
+
 chown -R nginx: $SITE_DIR
 
 export SITE_CONFIG=${site_config}
