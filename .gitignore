@@ -14,9 +14,9 @@ secret/*
 005_Data_Sources/.terraform/*
 005_Data_Sources/terraform*
 005_Data_Sources/.terraform*
-006_Nearly_Zero_DownTime_LEMP_ALB_ASG/.terraform/*
-006_Nearly_Zero_DownTime_LEMP_ALB_ASG/terraform*
-006_Nearly_Zero_DownTime_LEMP_ALB_ASG/.terraform*
+006_Zero_DownTime_LEMP_ALB_ASG/.terraform/*
+006_Zero_DownTime_LEMP_ALB_ASG/terraform*
+006_Zero_DownTime_LEMP_ALB_ASG/.terraform*
 007_Random_string_and_Parameter_Store/.terraform/*
 007_Random_string_and_Parameter_Store/terraform*
 007_Random_string_and_Parameter_Store/.terraform*

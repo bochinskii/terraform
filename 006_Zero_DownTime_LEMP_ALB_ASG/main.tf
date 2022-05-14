@@ -25,7 +25,7 @@ resource "aws_launch_template" "my_lemp_template" {
 
   # user_data = base64encode(file("./test_v1.sh"))
 
-  user_data = base64encode(templatefile("./user_data_http.sh.tftpl",
+  user_data = base64encode(templatefile("./user_data_http_v1.sh.tftpl",
   {
     hostname = var.hostname,
     timezone = var.timezone,
@@ -118,6 +118,9 @@ resource "aws_lb_target_group" "my_lemp_alb_tg" {
   port        = 80
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.vpc_project.id
+
+  load_balancing_algorithm_type = "round_robin"
+
   deregistration_delay = 10
 
   health_check {
@@ -145,11 +148,13 @@ resource "aws_lb_target_group" "my_lemp_alb_tg" {
 resource "aws_autoscaling_group" "my_lemp_asg" {
   name               = "my_lemp_asg"
   availability_zones = data.aws_availability_zones.all_az.names
-  desired_capacity   = 1
-  max_size           = 1
-  min_size           = 1
+  desired_capacity   = 2
+  max_size           = 4
+  min_size           = 2
 
   health_check_type  = "ELB"
+
+  health_check_grace_period = 420
 
   target_group_arns = [aws_lb_target_group.my_lemp_alb_tg.arn]
 
@@ -168,7 +173,9 @@ resource "aws_autoscaling_group" "my_lemp_asg" {
     strategy = "Rolling"
 
     preferences {
-      min_healthy_percentage = 100
+      ### instance_warmup = health_check_grace_period
+      #instance_warmup =
+      min_healthy_percentage = 50
     }
   }
 
@@ -199,7 +206,7 @@ resource "aws_autoscaling_policy" "my_lemp_asg_pol_avgcpu" {
   autoscaling_group_name = aws_autoscaling_group.my_lemp_asg.name
 
   target_tracking_configuration {
-    target_value = 98
+    target_value = 90
 
     predefined_metric_specification {
       predefined_metric_type = "ASGAverageCPUUtilization"

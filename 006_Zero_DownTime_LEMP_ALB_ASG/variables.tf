@@ -42,12 +42,6 @@ variable "site_config" {
 }
 
 # aws_instance variables
-/*
-variable "ami" {
-  type = string
-  default = "ami-09439f09c55136ecf"
-}
-*/
 
 variable "instance_type" {
   type = string
@@ -71,22 +65,6 @@ variable "volume_size" {
   default = 10
 }
 
-# aws_security_group variables
-/*
-variable "vpc_id" {
-  type = string
-  default = "vpc-03ccdbfd7272a7584"
-}
-*/
-
-# ASG variables
-/*
-variable "availability_zones" {
-  type = list(string)
-  default = ["eu-central-1a", "eu-central-1b", "eu-central-1c"]
-}
-*/
-
 # ALB variables
 
 variable "health_check" {
@@ -103,12 +81,6 @@ variable "health_check" {
   }
 }
 
-/*
-variable "all_subnet_id" {
-  type = list(string)
-  default = ["subnet-000c2008b7496a3b7", "subnet-0646580d441af171c", "subnet-053fd4df99fbbb0f9"]
-}
-*/
 # Other variables
 
 variable "template_tags" {

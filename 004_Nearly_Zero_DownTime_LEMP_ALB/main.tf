@@ -17,7 +17,7 @@ resource "aws_instance" "my_lemp" {
 
   # user_data = base64encode(file("./test_v1.sh"))
 
-  user_data_base64 = base64encode(templatefile("./user_data_http.sh.tftpl",
+  user_data_base64 = base64encode(templatefile("./user_data_http_v2.sh.tftpl",
   {
     hostname = var.hostname,
     timezone = var.timezone,

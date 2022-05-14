@@ -1,0 +1,228 @@
+---------------------------------------------------------------------
+Создание LEMP с использованием ALB, ASG с zero downtime и Provisioner
+---------------------------------------------------------------------
+
+Этот раздел больше для изучения AWS, чем terraform. Тут мы консолидируем ранее выученное
+и немного коснемся provisioners'ов.
+
+Наша задача сделать масштабируемую инфраструктуру на примере LEMP сервера.
+Мы создадим ASG, которая в зависимости от загрузки процессора будет мастабировать количество
+ec2 instances'ов. Так же мы будем использовать ALB, который будет терменировать HTTPS.
+Так же, все запросы на HTTP будут перенаправляться на HTTPS.
+
+$ mkdir ./006_Zero_DownTime_LEMP_ALB_ASG; cd ./006_Zero_DownTime_LEMP_ALB_ASG
+
+$ export AWS_ACCESS_KEY_ID=<your access key id>
+$ export AWS_SECRET_ACCESS_KEY=<your secret access key>
+$ export AWS_DEFAULT_REGION=<your default region>
+
+$ export TF_VAR_ssh_port=<your custome ssh port number>
+$ export TF_VAR_mysql_root_pass=<your mysql root password>
+$ export TF_VAR_mysql_admin_user=<your mysql admin username>
+$ export TF_VAR_mysql_admin_user_pass=<your mysql admin password>
+$ export TF_VAR_mysql_drupal_user=<your mysql drupal username>
+$ export TF_VAR_mysql_drupal_user_pass=<your mysql drupal user password>
+$ export TF_VAR_mysql_drupal_db=<your mysql drupal database>
+$ export TF_VAR_site_dir=<your prefix site directory>
+
+Оставим "за кадром" создание конфигурации провайдера.
+
+$ terraform init
+
+Со всеми необходимыми файлами для создания инфраструктуры можно ознакомится в директории с проектом.
+
+
+
+
+Файл variables.tf рассматривать не будем, т.к. там нет ничего того, что мы не рассмотрели.
+
+
+
+
+
+В файле data.tf мы изъяли всю необходимую в проекте информацию.
+
+Регион, в котором будет развернута инфраструктура (эта информация не используется в проекте, но часто ее нужно выводить
+для проектов).
+
+VPC в которой мы будем разворачивать инфраструктуру. Мы нашли id по имени. Эту информацию мы использовали
+в создании групп безопасности и target group'е.
+
+Изъяли id subnets'ов, в которых будет развернута инфраструктура с помощью VPC id.
+Эту информацию мы использовали при создании ALB.
+
+Ну, и выяслили имена всех AZ в нашем регионе. Эта информация нам понадобилась при содании ASG.
+
+
+
+
+Файл outputs.tf  мы тоже рассматривать не будем. Мы там вывели интересующую нас информацию.
+Самая важная - это dns имя ALB.
+
+
+
+
+Файл main.tf мы разберем по ходу описания нашей инфрмаструктуры.
+
+У нас есть ASG aws_autoscaling_group (my_lemp_asg), которая управляет автоматической
+мастабируемостью insatnces'ов с помощью политики aws_autoscaling_policy (my_lemp_asg_pol_avgcpu).
+Для простоты мы используем Target Tracking Scaling тип политики, которая увеличивает или уменьшает
+количество insatnces'ов в зависимости от нагрузки процессора (target_value = 90%).
+Для примера, мы сделали так, что при начальной конфигурации у нас создаются
+2 insatnces'а (desired_capacity, min_size), а максимум может смаштабироваться до - 4 (max_size).
+
+Очень важным параметром в настрйоке ASG является - health_check_grace_period. Его нужно ставить
+в зависимости от того, сколько времени понадобится приложению развернутся на insatnce'е.
+Поэтому в реальных условиях, нужно было бы поставить LEMP заранее и использовать готовый ami,
+а при старте insatnce'а только обновлять сайт и базу данных. Если сайт не большой и база не большая, то
+health_check_grace_period можно было бы уменьшить, но в нашем случае его пришлось
+увеличить с 300 (по-умолчанию) для 420 секунд.
+
+health_check_grace_period - это время в течении которого ASG ждет до того, как "делать выводы по"
+health ckecks. Пока приложение не развернулось? health checks (от ALB в нашем случае) показывают -
+unhealthy, и если ASG будет "вопринимать" эти health checks'и, то "посчитает", что instance
+не рабочий и заменит его другим во время развертывания приложения. И так по кругу.
+Поэтому мы даем время приложению (в ншем случае, Drupal'у) развернутся.
+Мы заранее подсчитали, что оно будет разворачиваться порядка 6 - 7 минут
+и поэтому указали health_check_grace_period = 420. Кактолько это время прошло,
+health checks уже начали показывать healthy.
+
+Еще одним важным параметром в настройках ASG является instance_refresh. он говорит о том,
+что при изменениях insatnce'а (например, изменилась user data у lunch template'а) мы его должны заменить.
+Параметр - min_healthy_percentage = 50, говорит о том, что мы должны сначала заменить 50 процентов
+наших insatnce'ов на новые и как только они заменятся изменить оставшиеся 50 процентов.
+Т.е. если у нас работаю 2 insatnce'а, то сначла заменится один insatnce, а после уже воторой.
+Есть один параметр - instance_warmup, который равен health_check_grace_period'у.
+Он говорит о том, что сперва "новый" insatnce запустится, потом ASG подожет это время
+и начнет за ним "следить". Т.е. этот парамет по сути выполняет такие же функции, как и
+health_check_grace_period.
+
+Еще один момент на который стоит обратить внимание в настройке ASG - launch_template,
+а именно - version = aws_launch_template.my_lemp_template.latest_version. Это говорит
+о том, что ASG всегда должна использовать последнюю версию при создании insatnce'ов.
+
+
+По поводу provisioner'а мы поговорим ниже.
+
+Запустим процесс
+
+$ terraform plan
+
+$ terraform apply
+
+
+Outputs:
+
+current_region = "eu-central-1"
+my_lemp_alb_dns = "my-lemp-alb-1287599944.eu-central-1.elb.amazonaws.com"
+my_lemp_asg = "arn:aws:autoscaling:eu-central-1:880954070217:autoScalingGroup:bed8791b-7ab1-4bb1-abe9-752ea026e69d:autoScalingGroupName/my_lemp_asg"
+target_group_arn = "arn:aws:elasticloadbalancing:eu-central-1:880954070217:targetgroup/my-lemp-alb-tg/f7f488ebc1789abe"
+
+
+На данный момент запущено 2 insatnce'а. Давайте теперь изменим, например, user data
+и перезапустим инфраструктуру.
+
+$ terraform plan
+
+$ terraform apply
+
+
+Outputs:
+
+current_region = "eu-central-1"
+my_lemp_alb_dns = "my-lemp-alb-1287599944.eu-central-1.elb.amazonaws.com"
+my_lemp_asg = "arn:aws:autoscaling:eu-central-1:880954070217:autoScalingGroup:bed8791b-7ab1-4bb1-abe9-752ea026e69d:autoScalingGroupName/my_lemp_asg"
+target_group_arn = "arn:aws:elasticloadbalancing:eu-central-1:880954070217:targetgroup/my-lemp-alb-tg/f7f488ebc1789abe"
+
+
+Вот что происходит. ASG "заметила", что изменился lunch template (появилась новая версия),
+а значит нужно менять (instance_refresh) instance'ы на новые версии,
+а именно сперва заменить 50 процентов, а потом еще 50 процентов (min_healthy_percentage)
+
+На рисурнке ./logs/min2_des2_new_version_1.png видно, что удалился один insatnce и
+создается другой (со 2 версией lunch template) при этом ASG ждет - warmup. При этом всем, ALB посылает запросы
+на только "старый" (с 1 версией lunch template) instance.
+
+На рисурнке ./logs/min2_des2_new_version_2.png видно, что target group'а уже
+опрашивает health checks'ами "новый" instance, а при этом второй "старый" еще работает.
+
+На рисурнке ./logs/min2_des2_new_version_3.png видно, что удалился второй "старый"
+instance и создается второй "новый" instance. При этом ALB посылает запросы только
+на "новый" instance.
+
+На рисурнке ./logs/min2_des2_new_version_4.png видно, что target group'а уже
+опрашивает health checks'ами второй "новый" insatnce.
+
+На рисурнках ./logs/min2_des2_new_version_5.png и ./logs/min2_des2_new_version_6.png
+видно, что уже заменились все insatnce'ы на "новые". ALB посылает запросы на два "новых"
+insatnce'ы в соответствии со своей политикой балансировки (в нашем случае round_robin)
+
+Таким образом мы сделали zero downtime. Правда этот метод хорош, когда у нас запущены
+два и более insatnce'ы одновременно.
+
+Опять же обратим внимание, что очень много времени тратится на user data.
+Если вы посмотрите на скрипт, то увидите, что там много всего устанавливается.
+В реальных условиях, лучше сделать свой ami с предустановленным - lemp и установленным CMS.
+Тогда будет все намного быстрее и простой уменьшится во много раз.
+
+---------------------------------------------------------------------------------
+Замечание:
+
+
+ASG можно связать с target group двумя вариантами:
+
+1-й
+
+resource "aws_autoscaling_attachment" "my_lemp_asg_attach" {
+  autoscaling_group_name = aws_autoscaling_group.my_lemp_asg.id
+  lb_target_group_arn    = aws_lb_target_group.my_lemp_alb_tg.arn
+}
+
+2-й
+
+resource "aws_autoscaling_group" "my_lemp_asg" {
+  ...
+
+  target_group_arns = [aws_lb_target_group.my_lemp_alb_tg.arn]
+
+  ...
+}
+
+Мы воспользовались вторым вариантом т.к. этот вариант отрабатывает правильно, когда ASG пересоздает
+insatnces'ы.
+---------------------------------------------------------------------------------
+
+
+------------
+Provisioners
+------------
+
+https://www.terraform.io/language/resources/provisioners/syntax
+
+https://www.terraform.io/language/resources/provisioners/local-exec
+
+
+Provisioners помогуют выполнять команды на разных интерпретаторах (bash, python и .т.д)
+локально (local-exec), на удаленной машине (remote-exec), например на insatnce'е, а так же
+копировать файлы и директории с локальной машины на удаленную (insatnce).
+
+Мы использовали provisioner для выполнения запуска скрипта на bash на локальной машине.
+Этот скрипт записивает ip адреса insatnces'ов в файл ./logs/instances_ip, которыми управляет asg.
+Правда этот скипт работает только при первом запуске apply. Хотя вы можете непосредственно
+запускать его в любой момент и посмотреть ip адресса insatnces'ов.
+
+provisioner "local-exec" {
+  command = "chmod +x ./getips.sh; ./getips.sh; chmod -x ./getips.sh"
+  environment = {
+    REGION = data.aws_region.current_region.name
+    ASG = aws_autoscaling_group.my_lemp_asg.name
+  }
+}
+
+IP адреса могут понадобиться чтобы зайти по ssh на insatnces'ы для каких либо задач.
+
+Почему мы не выводим IP адреса с помощью outputs? Дело в том, что мы не создавали ресурс aws_insatnce.
+Их создаед ASG. Поэтому нет ресурса из которого мы смогли бы вывести output.
+
+Примечательно то, что мы можем создать переменные окружения для команд или скрипта,
+которые(ый) выполняется (environment).
