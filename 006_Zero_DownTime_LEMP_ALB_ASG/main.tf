@@ -38,8 +38,6 @@ resource "aws_launch_template" "my_lemp_template" {
     mysql_drupal_user_pass = var.mysql_drupal_user_pass,
     mysql_drupal_db = var.mysql_drupal_db,
     pkgs = var.pkgs,
-    ssl_cert = var.ssl_cert,
-    ssl_key = var.ssl_key,
     site_dir = var.site_dir,
     site_config = var.site_config
   }

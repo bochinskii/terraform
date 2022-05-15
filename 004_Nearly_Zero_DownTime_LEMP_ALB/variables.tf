@@ -27,14 +27,6 @@ variable "pkgs" {
     "php-mbstring", "php-json", "php-common", "php-gmp", "php-intl", "php-gd", "php-cli", "php-zip", "php-opcache"
   ]
 }
-variable "ssl_cert" {
-  type = string
-  default = "rocinante.crt"
-}
-variable "ssl_key" {
-  type = string
-  default = "rocinante.key"
-}
 variable "site_dir" {}
 variable "site_config" {
   type = string

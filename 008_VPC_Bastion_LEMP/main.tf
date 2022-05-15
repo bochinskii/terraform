@@ -1,23 +1,69 @@
 #
-# EC2 Instance
+# Bastion
 #
-resource "aws_instance" "my_lemp" {
-  ami = var.ami
-  instance_type = var.instance_type
+
+resource "aws_instance" "bastion" {
+  count = var.env == "dev" ? 1 : 0
+  ami = data.aws_ami.amazon_linux_2_5_latest.image_id
+  #instance_type = var.instance_type["bastion"]
+  instance_type = lookup(var.instance_type, "bastion")
 
   key_name = var.key_name
 
   vpc_security_group_ids = [
-    aws_security_group.my_lemp_web.id,
-    aws_security_group.my_lemp_ssh.id
+    aws_security_group.bastion_sg.id
   ]
 
-  availability_zone = var.availability_zone
-  subnet_id = var.all_subnet_id[0]
+  # Any public subnet is good
+  #subnet_id = data.aws_subnets.all_public_subnets.ids[count.index]
+  subnet_id = element(data.aws_subnets.all_public_subnets.ids, count.index)
+
+  root_block_device {
+    #volume_type = var.volume_type["bastion"]
+    volume_type = lookup(var.volume_type, "bastion")
+    #volume_size = lookup(var.volume_size["bastion"]
+    volume_size = lookup(var.volume_size, "bastion")
+    delete_on_termination = true
+  }
+
+  tags = {
+    Name = "bastion"
+  }
+
+}
+
+
+#
+# EC2 Instances
+#
+
+locals {
+  instance_private_subnets = [
+    #data.aws_subnets.all_private_subnets.ids[0],
+    element(data.aws_subnets.all_private_subnets.ids, 0),
+    #data.aws_subnets.all_private_subnets.ids[1],
+    element(data.aws_subnets.all_private_subnets.ids, 1)
+  ]
+}
+
+resource "aws_instance" "lemp" {
+  count = length(local.instance_private_subnets)
+  ami = data.aws_ami.amazon_linux_2_5_latest.image_id
+  #instance_type = var.instance_type[var.env]
+  instance_type = lookup(var.instance_type, var.env)
+
+  key_name = var.key_name
+
+  vpc_security_group_ids = [
+    aws_security_group.all_sg.id
+  ]
+
+  #subnet_id = local.instance_private_subnets[count.index]
+  subnet_id = element(local.instance_private_subnets, count.index)
 
   # user_data = base64encode(file("./test_v1.sh"))
 
-  user_data_base64 = base64encode(templatefile("./user_data_http_v2.sh.tftpl",
+  user_data_base64 = base64encode(templatefile("./user_data_http.sh.tftpl",
   {
     hostname = var.hostname,
     timezone = var.timezone,
@@ -37,8 +83,10 @@ resource "aws_instance" "my_lemp" {
   user_data_replace_on_change = true
 
   root_block_device {
-    volume_type = var.volume_type
-    volume_size = var.volume_size
+    #volume_type = var.volume_type[var.en]
+    volume_type = lookup(var.volume_type, var.env)
+    #volume_size = var.volume_size[var.env]
+    volume_size = lookup(var.volume_size, var.env)
     delete_on_termination = true
   }
 
@@ -46,14 +94,11 @@ resource "aws_instance" "my_lemp" {
     create_before_destroy = true
   }
 
-  tags = merge(
-    var.template_tags,
-    {
-      Name = "my_lemp_${var.template_tags["Env"]}"
-    }
-  )
+  tags = {
+    Name = "lemp-${var.env}-${count.index + 1}"
+  }
 }
-
+/*
 #
 # ALB
 #
@@ -137,15 +182,52 @@ resource "aws_lb_listener" "my_lemp_alb_listener_443" {
     target_group_arn = aws_lb_target_group.my_lemp_alb_tg.arn
   }
 }
+*/
 
 
 #
 # Security Groups
 #
-resource "aws_security_group" "my_lemp_alb_sg" {
-  name        = "my_lemp_alb_sg"
+resource "aws_security_group" "bastion_sg" {
+  name        = "bastion_sg"
+  description = "Allow ssh traffic"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description      = "To SSH"
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  ingress {
+    description      = "To custome SSH"
+    from_port        = var.ssh_port
+    to_port          = var.ssh_port
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name = "bastion_sg"
+  }
+}
+
+resource "aws_security_group" "alb_sg" {
+  name        = "alb_sg"
   description = "Allow Web traffic"
-  vpc_id      = var.vpc_id
+  vpc_id      = aws_vpc.main.id
 
 
   ingress {
@@ -174,25 +256,27 @@ resource "aws_security_group" "my_lemp_alb_sg" {
     ipv6_cidr_blocks = ["::/0"]
   }
 
-  tags = merge(
-    var.template_tags,
-    {
-      Name = "my_lemp_alb_sg"
-    }
-  )
+  tags = {
+    Name = "alb_sg"
+  }
+
 }
 
-resource "aws_security_group" "my_lemp_web" {
-  name        = "my_lemp_web"
+resource "aws_security_group" "all_sg" {
+  name        = "all_sg"
   description = "Allow Web traffic"
-  vpc_id      = var.vpc_id
+  vpc_id      = aws_vpc.main.id
 
   ingress {
-    description      = "All from ALB"
+    description      = "All from ALB and Bastion"
     from_port        = 0
     to_port          = 65535
     protocol         = "tcp"
-    security_groups  = [aws_security_group.my_lemp_alb_sg.id]
+    security_groups  = [
+      aws_security_group.alb_sg.id,
+      aws_security_group.bastion_sg.id
+
+    ]
   }
 
   egress {
@@ -203,49 +287,7 @@ resource "aws_security_group" "my_lemp_web" {
     ipv6_cidr_blocks = ["::/0"]
   }
 
-  tags = merge(
-    var.template_tags,
-    {
-      Name = "my_lemp_web"
-    }
-  )
-}
-
-resource "aws_security_group" "my_lemp_ssh" {
-  name        = "my_lemp_ssh"
-  description = "Allow ssh traffic"
-  vpc_id      = var.vpc_id
-
-  ingress {
-    description      = "To SSH"
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
+  tags = {
+    Name = "all_sg"
   }
-
-  ingress {
-    description      = "To custome SSH"
-    from_port        = var.ssh_port
-    to_port          = var.ssh_port
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  tags = merge(
-    var.template_tags,
-    {
-      Name = "my_lemp_ssh"
-    }
-  )
 }
