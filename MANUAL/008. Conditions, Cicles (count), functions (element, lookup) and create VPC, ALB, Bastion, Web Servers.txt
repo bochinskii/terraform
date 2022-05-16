@@ -1,0 +1,27 @@
+https://www.terraform.io/language/functions/lookup
+
+https://www.terraform.io/language/functions/element
+
+https://www.terraform.io/language/expressions/conditionals
+
+https://www.terraform.io/language/meta-arguments/count
+
+Outputs:
+
+alb_dns = "alb-1509612377.eu-central-1.elb.amazonaws.com"
+all_private_subnets = tolist([
+  "subnet-0770e18e140a11cb7",
+  "subnet-0b740487cd89e824f",
+  "subnet-07f54ac65841bfb14",
+])
+all_public_subnets = tolist([
+  "subnet-030998d8f67ffc176",
+  "subnet-0d53df2e9702e330c",
+  "subnet-0d7b5ea28273cdec3",
+])
+bastion_public_ip = "3.67.34.84"
+lemp_private_ips = tolist([
+  "10.0.2.117",
+  "10.0.1.208",
+])
+vpc = "vpc-019400a279a9c92e0"

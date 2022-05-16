@@ -20,6 +20,6 @@ secret/*
 007_Random_string_and_Parameter_Store/.terraform/*
 007_Random_string_and_Parameter_Store/terraform*
 007_Random_string_and_Parameter_Store/.terraform*
-008_VPC_Bastion_LEMP/.terraform/*
-008_VPC_Bastion_LEMP/terraform*
-008_VPC_Bastion_LEMP/.terraform*
+008_Create_VPC_ALB_Bastion_and_Web_Servers/.terraform/*
+008_Create_VPC_ALB_Bastion_and_Web_Servers/terraform*
+008_Create_VPC_ALB_Bastion_and_Web_Servers/.terraform*
