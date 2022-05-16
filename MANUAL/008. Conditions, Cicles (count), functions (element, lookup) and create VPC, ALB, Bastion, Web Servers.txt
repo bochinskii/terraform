@@ -1,10 +1,290 @@
+---------------------------------------------------
+Условия, цыклы (count), функции (element, lookup).
+Создание VPC, Bastion и Web Server.
+--------------------------------------------------
+
+Обговорим весь функционал, который мы использовали в данном проекте, а потом
+опишем проект.
+
+-------
+Условия
+-------
+
+https://www.terraform.io/language/expressions/conditionals
+
+https://www.terraform.io/language/expressions/operators
+
+Рассмотрим маленький пример:
+
+variable "env" {
+  type = string
+  default = "prod"
+}
+
+resource "aws_instance" "some_instance" {
+  ...
+  instance_type = var.env == "prod" ? "t2.large" : "t2.micro"
+  ...
+}
+
+Если переменная - env будет иметь значние - prod, то instance_type будет - t2.large,
+если будет какое либо другое значение, то t2.micro.
+
+-------------------------
+Функции - element, lookup
+-------------------------
+
 https://www.terraform.io/language/functions/lookup
 
 https://www.terraform.io/language/functions/element
 
-https://www.terraform.io/language/expressions/conditionals
+На самом деле мы можем обойтись и без этих функции. Если коротко, то функция
+lookup - это для того, чтобы из map вытаскивать значение по ключу, а функция
+element - для того, чтобы из list вытаскивать значение по индексу. Это все можно делать и
+без этих функций, но мы решили их использовать в нашем проекте т.к. они широко
+используются общественностью.
+
+Вот примеры для lookup:
+
+variable "volume_type" {
+  type = map(string)
+  default = {
+    dev = "gp2",
+    prod = "io1",
+  }
+}
+
+Обычный вариант использования map:
+
+resource "aws_instance" "some_instance" {
+  ...
+  # Выберем io1
+  instance_type = var.volume_type["prod"]
+  ..
+}
+
+Вариант использования map с помощью функции lookup:
+
+resource "aws_instance" "some_instance" {
+  ...
+  # Выберем io1
+  instance_type = lookup(var.volume_type, "prod")
+  ..
+}
+
+
+Вот пример для element:
+
+variable "all_subnet_id" {
+  type = list(string)
+  default = [
+    "subnet-000c2008b7496a3b7",
+    "subnet-0646580d441af171c",
+    "subnet-053fd4df99fbbb0f9"
+  ]
+}
+
+Обычный вариант использования list:
+
+resource "aws_instance" "some_instance" {
+  ...
+  # Выберем subnet-000c2008b7496a3b7
+  subnet_id = var.all_subnet_id[0]
+  ..
+}
+
+Вариант использования list с помощью функции element:
+
+resource "aws_instance" "some_instance" {
+  ...
+  # Выберем subnet-000c2008b7496a3b7
+  subnet_id = element(var.all_subnet_id, 0)
+  ..
+}
+
+
+
+-------------
+Циклы - count
+-------------
 
 https://www.terraform.io/language/meta-arguments/count
+
+
+Например, нам нужно создать 2 ec2 instance'а:
+
+resource "aws_instance" "some_instance_1" {
+  ...
+  tags = {
+    Name = "some_instance_1"
+  }
+}
+
+resource "aws_instance" "some_instance_2" {
+  ...
+  tags = {
+    Name = "some_instance_2"
+  }
+}
+
+А что если нам нужно создать 20 instance'ов? Для этого можно использовать цикл - count.
+Кстати, данный цикл есть у всех ресурсов.
+
+resource "aws_instance" "some_instance" {
+  count = 20
+  ...
+  tags = {
+    Name = "some_instance_${count.index + 1}"
+  }
+}
+
+count.index - это номер элемента (цикла). В нашем случае от 0 до 19 (всего 20-ть).
+
+Выражение ${count.index + 1} нужно для того, чтобы имя первого ресурса было -
+"some_instance_1", а не "some_instance_0".
+
+
+В проекте, вы можете заметить функцию - length. Она вычисляет количество элементов
+в list'е. Причем она правильно это делает т.е. от 0-ля.
+
+Например, нас нужно создавать пользователей:
+
+variable "users" {
+  type = list(string)
+  default = [
+    "user1",
+    "user2",
+    "user3",
+    "user4",
+    "user5"
+  ]
+}
+
+resource "aws_iam_user" "users" {
+  count = length(var.users)
+  name = element(var.users, count.index)
+}
+
+Напоминаем, count.index - это номер элемента. В нашем случае от 0 и до 4 (всего 5 элементов).
+
+Кстати, напомним, что можно было бы не использовать функцию element, а записать так:
+
+name = var.users[count.index]
+
+Тоже бы сработало.
+
+---------------------------------------------------
+Вывод ресурсов сделанных с помощью count и цикл for
+---------------------------------------------------
+
+Это очень важный момент т.к. бывает, что вызывает некоторую путоницу. Поэтому мы
+решили даже выделить отдельно его.
+
+Мы знаем, что можем вывести информацию о ресурсах  созданныхв одном проекте с
+помощью output таким образом:
+
+resource "aws_iam_user" "user1" {
+  name = user1
+}
+
+resource "aws_iam_user" "user2" {
+  name = user1
+}
+
+resource "aws_iam_user" "user3" {
+  name = user1
+}
+
+output "user1_id" {
+  value = aws_iam_user.user1.id
+}
+
+output "user2_id" {
+  value = aws_iam_user.user2.id
+}
+
+output "user3_id" {
+  value = aws_iam_user.user3.id
+}
+
+Но, что если бы мы этих 3-их пользователей создали с помощью цикла? Вывод информации,
+о них, например их id, нужно делать несколько по другому:
+
+variable "users" {
+  type = list(string)
+  default = [
+    "user1",
+    "user2",
+    "user3",
+  ]
+}
+
+resource "aws_iam_user" "users" {
+  count = length(var.users)
+  name = element(var.users, count.index)
+}
+
+output "users_id" {
+  value = aws_iam_user.users[0].id
+}
+
+output "users_id" {
+  value = aws_iam_user.users[1].id
+}
+
+output "users_id" {
+  value = aws_iam_user.users[2].id
+}
+
+Более ценно, выводить определенную информацию о всех созданных aws рсурсов с помощью
+цикла. Она выводится в списке (list).
+
+Первый вариант (часто используют)
+
+output "users_id" {
+  value = aws_iam_user.users[*].id
+}
+
+Второй вариант:
+
+output "users_id" {
+  value = [
+    for u in aws_iam_user.users :
+    u.id
+  ]
+}
+
+В проекте мы будем часто это использовать первый вариант.
+
+-------------------------
+Дополнение:
+
+Можно сделать map, например из id и unique_id:
+
+output "users_id_and_unique_id" {
+  value = [
+    for u in aws_iam_user.users :
+    u.id => u.unique_id
+  ]
+}
+
+А так же можно делать условия (фильтры). Например, выведем имена пользователей, если количество
+символом в имени более - 2:
+
+output "users_name_gt_2" {
+  value = [
+    for u in aws_iam_user.users :
+    u.name
+    if length(u.name) > 2
+  ]
+}
+
+
+------------------------------
+
+
+
+
 
 Outputs:
 

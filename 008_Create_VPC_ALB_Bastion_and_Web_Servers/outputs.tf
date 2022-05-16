@@ -15,5 +15,5 @@ output "alb_dns" {
 }
 
 output "bastion_public_ip" {
-  value = var.env == "dev" ? element(aws_instance.bastion.*.public_ip, 0) : "there is no bastion"
+  value = var.env == "dev" ? element(aws_instance.bastion[*].public_ip, 0) : "there is no bastion"
 }

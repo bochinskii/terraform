@@ -117,7 +117,7 @@ resource "aws_lb_target_group" "alb_tg" {
 resource "aws_lb_target_group_attachment" "alb_tg_attach" {
   count            = length(local.instance_private_subnets)
   target_group_arn = aws_lb_target_group.alb_tg.arn
-  target_id        = element(aws_instance.lemp.*.id, count.index)
+  target_id        = element(aws_instance.lemp[*].id, count.index)
   port             = 80
 }
 
