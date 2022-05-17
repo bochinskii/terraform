@@ -29,39 +29,11 @@ variable "private_subnet_cidr_blocks" {
   ]
 }
 #
-# User data
+# Security Group variable
 #
-variable "hostname" {
-  type = string
-  default = "rocinante"
-}
-variable "timezone" {
-  type = string
-  default = "Europe/Berlin"
-}
+
 variable "ssh_port" {} # for user data and aws_security_group
-variable "mysql_repo" {
-  type = string
-  default = "https://dev.mysql.com/get/mysql80-community-release-el7-6.noarch.rpm"
-}
-variable "mysql_root_pass" {}
-variable "mysql_admin_user" {}
-variable "mysql_admin_user_pass" {}
-variable "mysql_drupal_user" {}
-variable "mysql_drupal_user_pass" {}
-variable "mysql_drupal_db" {}
-variable "pkgs" {
-  type = list(string)
-  default = [
-    "php", "php-fpm", "php-pdo", "php-mysqlnd", "php-xml", "php-gd", "php-curl",
-    "php-mbstring", "php-json", "php-common", "php-gmp", "php-intl", "php-gd", "php-cli", "php-zip", "php-opcache"
-  ]
-}
-variable "site_dir" {}
-variable "site_config" {
-  type = string
-  default = "rocinante.conf"
-}
+
 
 # ALB variables
 
@@ -74,7 +46,7 @@ variable "health_check" {
      timeout = "2"
      unhealthy_threshold = "2"
      port = "80"
-     path = "/index.html"
+     path = "/"
   }
 }
 

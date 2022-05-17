@@ -14,7 +14,7 @@ resource "aws_instance" "bastion" {
   ]
 
   # Any public subnet is good
-  subnet_id = element(data.aws_subnets.all_public_subnets.ids, count.index)
+  subnet_id = aws_subnet.public[0].id
 
   root_block_device {
     volume_type = lookup(var.volume_type, "bastion")
@@ -35,12 +35,12 @@ resource "aws_instance" "bastion" {
 
 locals {
   instance_private_subnets = [
-    element(data.aws_subnets.all_private_subnets.ids, 0),
-    element(data.aws_subnets.all_private_subnets.ids, 1)
+    aws_subnet.private[0].id,
+    aws_subnet.private[1].id
   ]
 }
 
-resource "aws_instance" "lemp" {
+resource "aws_instance" "instances" {
   count = length(local.instance_private_subnets)
   #ami = data.aws_ami.ubuntu_2204_latest.image_id
   ami = "ami-015c25ad8763b2f11"
@@ -69,7 +69,7 @@ resource "aws_instance" "lemp" {
   }
 
   tags = {
-    Name = "lemp-${var.env}-${count.index + 1}"
+    Name = "instance-${var.env}-${count.index + 1}"
   }
 }
 
@@ -82,7 +82,7 @@ resource "aws_lb" "alb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = data.aws_subnets.all_public_subnets.ids
+  subnets            = aws_subnet.public[*].id
 
   tags = {
     Name = "alb-${var.env}"
@@ -117,7 +117,7 @@ resource "aws_lb_target_group" "alb_tg" {
 resource "aws_lb_target_group_attachment" "alb_tg_attach" {
   count            = length(local.instance_private_subnets)
   target_group_arn = aws_lb_target_group.alb_tg.arn
-  target_id        = element(aws_instance.lemp[*].id, count.index)
+  target_id        = element(aws_instance.instances[*].id, count.index)
   port             = 80
 }
 

@@ -3,11 +3,11 @@ output "vpc" {
 }
 
 output "all_private_subnets" {
-  value = data.aws_subnets.all_private_subnets.ids
+  value = aws_subnet.private[*].id
 }
 
 output "all_public_subnets" {
-  value = data.aws_subnets.all_public_subnets.ids
+  value = aws_subnet.public[*].id
 }
 
 output "alb_dns" {
@@ -16,4 +16,8 @@ output "alb_dns" {
 
 output "bastion_public_ip" {
   value = var.env == "dev" ? element(aws_instance.bastion[*].public_ip, 0) : "there is no bastion"
+}
+
+output "instances_private_ips" {
+  value = aws_instance.instances[*].private_ip
 }
