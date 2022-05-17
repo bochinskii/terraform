@@ -28,12 +28,6 @@ variable "private_subnet_cidr_blocks" {
     "10.0.2.0/24"
   ]
 }
-#
-# Security Group variable
-#
-
-variable "ssh_port" {} # for user data and aws_security_group
-
 
 # ALB variables
 

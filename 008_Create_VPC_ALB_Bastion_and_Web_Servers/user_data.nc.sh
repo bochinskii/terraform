@@ -2,6 +2,7 @@
 export PRIVATE_IP=`curl 169.254.169.254/latest/meta-data/local-ipv4`
 
 touch /home/ubuntu/index.html
+
 cat << EOF > /home/ubuntu/index.html
 HTTP/1.1 200 OK
 Content-Type: text/html; charset=UTF-8

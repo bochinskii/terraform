@@ -26,8 +26,9 @@ resource "aws_instance" "bastion" {
     Name = "bastion"
   }
 
-}
+  depends_on = [aws_instance.instances]
 
+}
 
 #
 # EC2 Instances
@@ -42,8 +43,8 @@ locals {
 
 resource "aws_instance" "instances" {
   count = length(local.instance_private_subnets)
-  #ami = data.aws_ami.ubuntu_2204_latest.image_id
-  ami = "ami-015c25ad8763b2f11"
+  ami = data.aws_ami.ubuntu_2204_latest.image_id
+  #ami = "ami-015c25ad8763b2f11"
   instance_type = lookup(var.instance_type, var.env)
 
   key_name = var.key_name
@@ -166,15 +167,6 @@ resource "aws_security_group" "bastion_sg" {
     description      = "To SSH"
     from_port        = 22
     to_port          = 22
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  ingress {
-    description      = "To custome SSH"
-    from_port        = var.ssh_port
-    to_port          = var.ssh_port
     protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
