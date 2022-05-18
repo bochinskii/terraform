@@ -23,3 +23,6 @@ secret/*
 008_Create_VPC_ALB_Bastion_and_Web_Servers/.terraform/*
 008_Create_VPC_ALB_Bastion_and_Web_Servers/terraform*
 008_Create_VPC_ALB_Bastion_and_Web_Servers/.terraform*
+009_Create_resourses_in_two_regions_bonus_global_accelerator/.terraform/*
+009_Create_resourses_in_two_regions_bonus_global_accelerator/terraform*
+009_Create_resourses_in_two_regions_bonus_global_accelerator/.terraform*

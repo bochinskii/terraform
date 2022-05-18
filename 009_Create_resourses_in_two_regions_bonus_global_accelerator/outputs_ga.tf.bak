@@ -1,0 +1,10 @@
+#
+# Global Accelerator
+#
+output "ga_ips" {
+  value = aws_globalaccelerator_accelerator.nginx_ga.ip_sets
+}
+
+output "ga_dns" {
+  value = aws_globalaccelerator_accelerator.nginx_ga.dns_name
+}
