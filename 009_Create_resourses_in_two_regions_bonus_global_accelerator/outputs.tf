@@ -1,3 +1,7 @@
+#
+# Region
+#
+
 output "current_region_eu" {
   value = data.aws_region.current_region_eu.name
 }
@@ -6,6 +10,9 @@ output "current_region_ca" {
   value = data.aws_region.current_region_ca.name
 }
 
+#
+# VPC
+#
 
 output "availability_zones_eu" {
   value = data.aws_availability_zones.available_eu.names

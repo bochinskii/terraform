@@ -29,18 +29,266 @@ $ export AWS_ACCESS_KEY_ID=<your access key id>
 $ export AWS_SECRET_ACCESS_KEY=<your secret access key>
 
 
+Мы создадим 2-а ec2 instance'а на которые установим nginx сервер. Один в одном
+регионе (Европа), а другой в другом (Канада). При этом, мы это сделали в одном проекте.
 
-Мы создадим 2-а ec2 instance'а. Один в одном регионе, а другой в другом в одном проекте.
+Рассмотрим файл aws_provider.tf. А именно - provider.
+
+Мы настроили так называемый провайдер по-умолчанию (то как мы это делали всегда)
+
+provider "aws" {
+  region = "eu-central-1"
+}
+
+так же для возможности создания ресурсов в другом регионе создали еще одного провайдера
+
+provider "aws" {
+  region = "ca-central-1"
+  alias = "canada"
+}
+
+они отличаются тем, что провайдер по-умолчанию без alias'а, а дополнительный провайдер с
+alias'ом
+
+Теперь, если мы хотим создать ресурс или использовать data в другом регионе мы добавляем
+строку
+
+provider = aws.canada
+
+Вот пример:
+
+data "aws_region" "current_region_eu" {}
+
+data "aws_region" "current_region_ca" {
+  provider = aws.canada
+}
+
+output "current_region_eu" {
+  value = data.aws_region.current_region_eu.name
+}
+
+output "current_region_ca" {
+  value = data.aws_region.current_region_ca.name
+}
+
+Более детально описывать остальное нет смысла т.к. мы это все делали ранее.
 
 ------------------------------------------------------------------------------------
 Бонус:
+
 Если готовы потратить немного денег, то можете переименновать файлы
 main_ga.tf.bak и outputs_ga.tf.bak в main_ga.tf и outputs_ga.tf соответственно.
-Ну и запустить команды plan и apply. В этих файле описаны настройки Global Accelerator'а.
-Их рассматривать не будет т.к. настройка Global Accelerator'а довольно таки проста.
+Ну и запустить команды plan и apply. В этих файлах описаны настройки Global Accelerator'а.
 
 Как инфраструктура выглядит при этом всем? У нас один ec2 instance в одном регионе, а другой
 в другом. Global Accelerator перенаправляет трафик на них в зависимости от местоположения
 клиентов. Как и говорили ранее, если один из ec2 instance'ов выйдет из строя, то
 все клиентские запросы пойдут на оставшийся ec2 instance.
+
+Вот хорошее видео об GA из оффициального канала AWS
+
+https://www.youtube.com/watch?v=ZuYHiIWSglM
+
+Опишем некоторые настройки.
+
+В ресурсе aws_globalaccelerator_listener (nginx_ga) есть парамметр client_affinity.
+Это аналог stickiness в ELB. У нас привязка к определенному endpoint'у (ec2 instance'у)
+происходит по ip адресу клиента (SOURCE_IP).
+
+Опишем немного ресурсы создания групп endpoints'ов - aws_globalaccelerator_endpoint_group
+(nginx_ga_eu, nginx_ga_ca).
+Мы видим параметр traffic_dial_percentage. Это параметр отвечает зна распределение
+траффика между регионами. По-умолчанию он стоит в 100%. Это значит, что в нормальном
+состоянии каждый регион получает 100% траффика в зависимости от того, как близко
+распологаются клиенты к определенным регионам. Этот параметр очень удобный в случае
+создания Green Blue Deployment. Т.е. если вы хотите сделать обновления в одном из регионах,
+то вы ставите значение traffic_dial_percentage в - 0 и трафик в данный регион не идет.
+
+Вот пример. Вы хотите сделать некоторые обновления в европейском регионе. Поэтому
+вы параметр traffic_dial_percentage ставите в - 0. Траффик для всех клиентов идет
+через регион Канады.
+
+resource "aws_globalaccelerator_endpoint_group" "nginx_ga_eu" {
+  listener_arn = aws_globalaccelerator_listener.nginx_ga.id
+  endpoint_group_region = "eu-central-1"
+
+
+  traffic_dial_percentage = 0
+
+  endpoint_configuration {
+    ...
+  }
+}
+
+resource "aws_globalaccelerator_endpoint_group" "nginx_ga_ca" {
+  listener_arn = aws_globalaccelerator_listener.nginx_ga.id
+  endpoint_group_region = "ca-central-1"
+
+  traffic_dial_percentage = 100
+
+  endpoint_configuration {
+    ...
+  }
+}
+
+После того, как сделали обновления в Европе. Вы хотите сделать обновления в Канаде.
+Поэтому теперь вы перенаправляете весь трафик через Европу.
+
+resource "aws_globalaccelerator_endpoint_group" "nginx_ga_eu" {
+  listener_arn = aws_globalaccelerator_listener.nginx_ga.id
+  endpoint_group_region = "eu-central-1"
+
+
+  traffic_dial_percentage = 100
+
+  endpoint_configuration {
+    ...
+  }
+}
+
+resource "aws_globalaccelerator_endpoint_group" "nginx_ga_ca" {
+  listener_arn = aws_globalaccelerator_listener.nginx_ga.id
+  endpoint_group_region = "ca-central-1"
+
+  traffic_dial_percentage = 0
+
+  endpoint_configuration {
+    ...
+  }
+}
+
+После того, как обновления сделаны, вы возвращаете настройки в штатное состояние.
+
+resource "aws_globalaccelerator_endpoint_group" "nginx_ga_eu" {
+  listener_arn = aws_globalaccelerator_listener.nginx_ga.id
+  endpoint_group_region = "eu-central-1"
+
+
+  traffic_dial_percentage = 100
+
+  endpoint_configuration {
+    ...
+  }
+}
+
+resource "aws_globalaccelerator_endpoint_group" "nginx_ga_ca" {
+  listener_arn = aws_globalaccelerator_listener.nginx_ga.id
+  endpoint_group_region = "ca-central-1"
+
+  traffic_dial_percentage = 100
+
+  endpoint_configuration {
+    ...
+  }
+}
+
+В настройках каждого endpoint'а (endpoint_configuration) есть вес (weight). Этот
+параметр отвечает за распределение трафика между endpoints'ами в нутри региона.
+Этот параметр имееет значяение от 0 до 255. По-умолчанию - 128. В нашем случае,
+у нас в каждом регионе по одному ec2-instance'у, поэтому данный параметр не имеет смылса.
+но если бы у нас было более чем по одному ресурсу в регионе, то можно было бы как-то
+распределять траффик между ресурсами в пределах региона.
+
+Это может понадобится, для того же Green Blue deployment'а.
+
+Вот пример настроект одной группы endpoints'ов в одном регионе. В данной группе
+мы хотим сделать Geen Blue deployment. Сперва обновляем приложение на одном
+ec2 instance'е (nginx_1_ca)
+
+resource "aws_globalaccelerator_endpoint_group" "nginx_ga_eu" {
+  listener_arn = aws_globalaccelerator_listener.nginx_ga.id
+  endpoint_group_region = "eu-central-1"
+
+
+  traffic_dial_percentage = 100
+
+  endpoint_configuration {
+    endpoint_id = aws_instance.nginx_1_ca.id
+    weight      = 0
+  }
+
+  endpoint_configuration {
+    endpoint_id = aws_instance.nginx_2_ca.id
+    weight      = 255
+  }
+}
+
+теперь обновляем приложение на другом ec2 instance'е
+
+resource "aws_globalaccelerator_endpoint_group" "nginx_ga_eu" {
+  listener_arn = aws_globalaccelerator_listener.nginx_ga.id
+  endpoint_group_region = "eu-central-1"
+
+
+  traffic_dial_percentage = 100
+
+  endpoint_configuration {
+    endpoint_id = aws_instance.nginx_1_ca.id
+    weight      = 255
+  }
+
+  endpoint_configuration {
+    endpoint_id = aws_instance.nginx_2_ca.id
+    weight      = 0
+  }
+}
+
+теперь возвращаем настройки в штатное состояние
+
+resource "aws_globalaccelerator_endpoint_group" "nginx_ga_eu" {
+  listener_arn = aws_globalaccelerator_listener.nginx_ga.id
+  endpoint_group_region = "eu-central-1"
+
+
+  traffic_dial_percentage = 100
+
+  endpoint_configuration {
+    endpoint_id = aws_instance.nginx_1_ca.id
+    weight      = 128
+  }
+
+  endpoint_configuration {
+    endpoint_id = aws_instance.nginx_2_ca.id
+    weight      = 128
+  }
+}
+
+Можете ознакомится со рисунками в директории screenshots в папке проекта.
 -----------------------------------------------------------------------
+
+$ terraform plan
+
+$ terraform apply
+
+...
+
+Outputs:
+
+amazon_image_id_ca = "ami-0843f7c45354d48b5"
+amazon_image_id_eu = "ami-09439f09c55136ecf"
+availability_zones_ca = tolist([
+  "ca-central-1a",
+  "ca-central-1b",
+  "ca-central-1d",
+])
+availability_zones_eu = tolist([
+  "eu-central-1a",
+  "eu-central-1b",
+  "eu-central-1c",
+])
+aws_vpc_ca = "vpc-0eb480901cc1c9187"
+aws_vpc_eu = "vpc-03ccdbfd7272a7584"
+current_region_ca = "ca-central-1"
+current_region_eu = "eu-central-1"
+nginx_ca_public_ip = "3.98.127.195"
+nginx_eu_public_ip = "18.157.157.189"
+subnets_ca = tolist([
+  "subnet-0e84c20e68d0f640f",
+  "subnet-0d69d39dbf146395f",
+  "subnet-0b8eef5f69ff4d4df",
+])
+subnets_eu = tolist([
+  "subnet-000c2008b7496a3b7",
+  "subnet-0646580d441af171c",
+  "subnet-053fd4df99fbbb0f9",
+])

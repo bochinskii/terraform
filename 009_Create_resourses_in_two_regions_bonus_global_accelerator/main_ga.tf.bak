@@ -30,8 +30,9 @@ resource "aws_globalaccelerator_listener" "nginx_ga" {
 }
 
 
-resource "aws_globalaccelerator_endpoint_group" "nginx_ga" {
+resource "aws_globalaccelerator_endpoint_group" "nginx_ga_eu" {
   listener_arn = aws_globalaccelerator_listener.nginx_ga.id
+  endpoint_group_region = data.aws_region.current_region_eu.name
 
   health_check_interval_seconds = var.health_checks_ga["health_check_interval_seconds"]
   health_check_path = var.health_checks_ga["health_check_path"]
@@ -44,6 +45,18 @@ resource "aws_globalaccelerator_endpoint_group" "nginx_ga" {
     endpoint_id = aws_instance.nginx_eu.id
     weight      = 128
   }
+}
+
+resource "aws_globalaccelerator_endpoint_group" "nginx_ga_ca" {
+  listener_arn = aws_globalaccelerator_listener.nginx_ga.id
+  endpoint_group_region = data.aws_region.current_region_ca.name
+
+  health_check_interval_seconds = var.health_checks_ga["health_check_interval_seconds"]
+  health_check_path = var.health_checks_ga["health_check_path"]
+  health_check_protocol = var.health_checks_ga["health_check_protocol"]
+  threshold_count = var.health_checks_ga["threshold_count"]
+
+  traffic_dial_percentage = 100
 
   endpoint_configuration {
     endpoint_id = aws_instance.nginx_ca.id
