@@ -26,3 +26,12 @@ secret/*
 009_Create_resourses_in_two_regions_bonus_global_accelerator/.terraform/*
 009_Create_resourses_in_two_regions_bonus_global_accelerator/terraform*
 009_Create_resourses_in_two_regions_bonus_global_accelerator/.terraform*
+010_Remote_State/layer_1_vpc/.terraform/*
+010_Remote_State/layer_1_vpc/terraform*
+010_Remote_State/layer_1_vpc/.terraform*
+010_Remote_State/layer_2_ec2/.terraform/*
+010_Remote_State/layer_2_ec2/terraform*
+010_Remote_State/layer_2_ec2/.terraform*
+010_Remote_State/layer_3_alb/.terraform/*
+010_Remote_State/layer_3_alb/terraform*
+010_Remote_State/layer_3_alb/.terraform*

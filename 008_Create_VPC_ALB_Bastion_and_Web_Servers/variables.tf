@@ -1,10 +1,12 @@
-#
-# VPC
-#
+
 variable "env" {
   type = string
   default = "dev"
 }
+
+#
+# VPC
+#
 
 variable "vpc_cidr_block" {
   type = string
