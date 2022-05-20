@@ -35,3 +35,9 @@ secret/*
 010_Remote_State/layer_3_alb/.terraform/*
 010_Remote_State/layer_3_alb/terraform*
 010_Remote_State/layer_3_alb/.terraform*
+011_Create_modules/testings_aws_vpc/.terraform/*
+011_Create_modules/testings_aws_vpc/terraform*
+011_Create_modules/testings_aws_vpc/.terraform*
+011_Create_modules/testings_aws_security_group/.terraform/*
+011_Create_modules/testings_aws_security_group/terraform*
+011_Create_modules/testings_aws_security_group/.terraform*

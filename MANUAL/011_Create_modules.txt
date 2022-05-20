@@ -1,0 +1,55 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Мы не стали создавать private подсеть, путем удаления cidr блоков из переменной -
+private_subnet_cidr_blocks
+
+$ terraform plan
+
+$ terraform apply
+
+...
+
+Outputs:
+
+db_subnet_cidr_blocks = tolist([
+  "10.0.64.0/24",
+  "10.0.65.0/24",
+  "10.0.66.0/24",
+])
+db_subnets_ids = [
+  "subnet-088ecc68927a65bd8",
+  "subnet-0fbb66463b67cd7e0",
+  "subnet-0b02f278c590ddfed",
+]
+private_subnet_cidr_blocks = tolist([])
+private_subnets_ids = []
+public_subnet_cidr_blocks = tolist([
+  "10.0.128.0/24",
+  "10.0.129.0/24",
+  "10.0.130.0/24",
+])
+public_subnets_ids = [
+  "subnet-06ab7e2866f30e650",
+  "subnet-02a57d7cf49820777",
+  "subnet-02fb89632e5b9a4fb",
+]
+vpc_cidr_block = "10.0.0.0/16"
+vpc_id = "vpc-067b3fdd204597eac"
+
+
+$ terraform destroy
