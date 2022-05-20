@@ -1,3 +1,4 @@
+
 data "terraform_remote_state" "vpc" {
   backend = "s3"
 
@@ -17,11 +18,12 @@ data "terraform_remote_state" "ec2" {
     region = "eu-central-1"
   }
 }
-
+/*
 output "vpc_backend" {
-  value = terraform_remote_state.vpc
+  value = data.terraform_remote_state.vpc
 }
 
 output "ec2_backend" {
-  value = terraform_remote_state.ec2
+  value = data.terraform_remote_state.ec2
 }
+*/

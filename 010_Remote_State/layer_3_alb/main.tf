@@ -1,12 +1,14 @@
 #
 # ALB
 #
+
 resource "aws_lb" "alb" {
   name               = "alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [data.terraform_remote_state.ec2.outputs.alb_sg_id]
-  subnets            = [data.terraform_remote_state.vpc.outputs.subnet_ids]
+  subnets            = data.terraform_remote_state.vpc.outputs.subnet_ids
+
 
   tags = {
     Name = "alb-${data.terraform_remote_state.vpc.outputs.env}"

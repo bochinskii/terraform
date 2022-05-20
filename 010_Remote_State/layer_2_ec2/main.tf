@@ -17,7 +17,7 @@ resource "aws_instance" "instances" {
 
   key_name = var.key_name
 
-  vpc_security_group_ids = aws_security_group.ec2_sg.id
+  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
 
 
   subnet_id = element(local.instance_public_subnets, count.index)
@@ -27,8 +27,8 @@ resource "aws_instance" "instances" {
   user_data_base64 = base64encode(file("./nginx.sh"))
 
   root_block_device {
-    volume_type = lookup(var.volume_type, "volume_type")
-    volume_size = lookup(var.volume_size, "volume_size")
+    volume_type = lookup(var.root_block_device, "volume_type")
+    volume_size = lookup(var.root_block_device, "volume_size")
     delete_on_termination = true
   }
 
@@ -94,9 +94,7 @@ resource "aws_security_group" "ec2_sg" {
     from_port        = 0
     to_port          = 65535
     protocol         = "tcp"
-    security_groups  = [
-      aws_security_group.alb_sg.id,
-    ]
+    security_groups  = [aws_security_group.alb_sg.id]
   }
 
   ingress {

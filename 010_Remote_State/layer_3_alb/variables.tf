@@ -12,6 +12,6 @@ variable "health_check" {
      timeout = "2"
      unhealthy_threshold = "2"
      port = "80"
-     path = "/"
+     path = "/check.html"
   }
 }

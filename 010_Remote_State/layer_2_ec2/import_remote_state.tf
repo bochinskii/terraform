@@ -7,7 +7,8 @@ data "terraform_remote_state" "vpc" {
     region = "eu-central-1"
   }
 }
-
+/*
 output "vpc_backend" {
-  value = terraform_remote_state.vpc
+  value = data.terraform_remote_state.vpc
 }
+*/
