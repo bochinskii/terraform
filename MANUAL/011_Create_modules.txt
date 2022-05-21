@@ -1,19 +1,73 @@
+----------------
+Создание модулей
+----------------
+
+Модули - это функции.
+
+Мы создадим два модуля:
+- модуль для VPC
+- модуль для групп безопасности
+
+Потом покажем как нужно использовать модули на примере небольшого проекта.
+подробности проекта опишем позже.
+
+Зачем могут понадобиться модули? Вот пример создания VPC. Мы ранее уже создавали
+VPC и видели сколько кода нужно написать. А представте, если вам сказали сделать несколько
+VPC причем с разными типами сетей. Код становится очень больши.
+
+Вот для таких целей используются модули. Это будет видно, когда напишем проект,
+использующий модули.
+
+Создадим рабочую директорию
+
+$ mkdir ./011_Create_modules; cd ./011_Create_modules
+
+Создадим директории, где будут лежать готовые модули
+
+$ mkdir -p ./modules/{aws_vpc,aws_security_group}
+
+Создадим директори, где мы будем писать модуль и тестировать
+
+$ mkdir -p ./testings/{aws_vpc,aws_security_group}
+
+Создадим директори, где будут лежать проекты в которых мы будем задействовать
+модули:
+
+$ mkdir -p ./projects/create_network_dev_and_prod
 
 
+-------------------
+Модуль создания VPC
+-------------------
 
+В ./testings/aws_vpc находится код, а в директории ./modules/aws_vpc готовый модуль.
+Сразу скажем что эти папки отличаются по составу только наличием файла aws_provider.tf в
+директории testings.
 
+На самом деле в директории ./testings/aws_vpc находится обычный проект по созданию VPC.
 
+Тут смысл в том, чтобы сделать гибкость. Т.е. например, если мы не ходим создавать private
+подсети (с eip и nat gateway), то просто, назначаем пустое значение переменной
+(в нашем случае - private_subnet_cidr_blocks). Не захотели в следующий раз, например,
+создавать подсеть db, назначаем пустое значение переменной (в нашем счлучает - db_subnet_cidr_blocks)
+и т.д.
 
+Для этого мы и создали директорию testings. Мы оттестируем наш код и когда убедимся, что
+он работает гибко, мы создадим из него модуль.
 
+Если посмотреть на код в main.tf, то можно заметить, что если мы не укажем определенные
+cidr блоки, то определенные подсети не создадутся. В нашем примере, по-умолчанию
+мы задали пустое значение переменной private_subnet_cidr_blocks.
 
+Конечно же при использовании модуля в проекте, эти переменные можно переопределить.
+Это мы покажем позже.
 
+Очень важным файлом является outputs.tf. Он важен так же как и при использовании
+Remote Sate. Outputs'ы модуля могут использоваться например, для групп безопасности
+(для этого нужен VPC id), для создания ALB, ec2 instances'ов (понадобятся id подсетей)
+и т.д.
 
-
-
-
-
-
-
+Давайте протестируем
 
 Мы не стали создавать private подсеть, путем удаления cidr блоков из переменной -
 private_subnet_cidr_blocks
@@ -53,3 +107,158 @@ vpc_id = "vpc-067b3fdd204597eac"
 
 
 $ terraform destroy
+
+После того, как мы закончили с кодом, сделаем из него модуль. Давайте перенесем код
+в соответствующую директорию (modules/aws_vpc). Чтобы код превратился в модуль,
+нужно перенести все файлы кода кроме настроект провайдера (aws_provider.tf)
+
+
+----------------------------------
+Модуль создания групп безопасности
+----------------------------------
+
+Мы о нем рассказывать не будем.
+
+Достаточно ознакомится с его кодом (хотя он может показаться сложнее чем vpc, хоть и гораздо меньше).
+Смысл остается тот же: пишем код, тестируем его в некоторой директории и переносим
+в папку для модулей без настроек провайдера.
+
+Код для тестирования находится в testings/aws_security_groups, а готовый модуль в
+modules/aws_security_groups
+
+-------------------------------
+Использование модулей в проекте
+-------------------------------
+
+https://www.terraform.io/language/modules/syntax
+
+В директориии projects/create_network_dev_and_prod мы сделали проект в котором
+создаем две VPC, одну dev - только с public подсетью, а другую - prod, в которой
+есть public и db подсети.
+
+Так же создадим группы безопасности для dev - для web и ssh трафика.
+Так же создадим группы безопасности для prod - пропускающий web трафик (для будущего ALB),
+ssh траффик и группу безопасности пропускающую весь траффик от ALB.
+
+В файле main.tf описан весь код проекта. Всего лишь 128 строк, а теперь представьте сколкьо
+строк имел бы такой проект без модуля. Ну, бы ли бы сотни строк.
+
+Минимальная запись для использования модуля выглядит так (название произвольное).
+Вот пример:
+
+module "vpc_dev" {
+  source = "../../modules/aws_vpc"
+}
+
+если нужно перезаписать переменные указанные по-умолчанию в модуле, то нужно их указать
+в директиве module. Вот пример
+
+module "vpc_dev" {
+  source = "../../modules/aws_vpc"
+
+  env = "dev"
+  vpc_cidr_block = "10.128.0.0/16"
+  public_subnet_cidr_blocks = [
+    "10.128.0.0/24",
+    "10.128.1.0/24",
+    "10.128.2.0/24"
+  ]
+  private_subnet_cidr_blocks = []
+  db_subnet_cidr_blocks = []
+}
+
+Далее, мы создаем группы безопасности, в нашем случае, тоже используя модуль.
+Напомню, что при создании групп безопасности, нам понадобится VPC id. Как же его вытащить из модуля?
+Вот пример
+
+module "sg_web_dev" {
+  source = "../../modules/aws_security_group"
+  ...
+  vpc_id = module.vpc_dev.vpc_id
+  ...
+}
+
+Вот поэтому outputs'ы очень важны в написании модулей.
+
+Ну, и сделали outputs'ы интересной для нас информации
+
+Давайте протестируем проект.
+
+Как можно заметить, при инициализации terraform проверяет наличие модуелей.
+
+$ terraform init
+
+Initializing modules...
+- sg_all_ec2_prod in ../../modules/aws_security_group
+- sg_ssh_dev in ../../modules/aws_security_group
+- sg_ssh_ec2_prod in ../../modules/aws_security_group
+- sg_web_alb_prod in ../../modules/aws_security_group
+- sg_web_dev in ../../modules/aws_security_group
+- vpc_dev in ../../modules/aws_vpc
+- vpc_prod in ../../modules/aws_vpc
+
+Initializing the backend...
+
+Initializing provider plugins...
+- Finding latest version of hashicorp/aws...
+- Installing hashicorp/aws v4.15.1...
+- Installed hashicorp/aws v4.15.1 (signed by HashiCorp)
+
+Terraform has created a lock file .terraform.lock.hcl to record the provider
+selections it made above. Include this file in your version control repository
+so that Terraform can guarantee to make the same selections by default when
+you run "terraform init" in the future.
+
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+
+
+$ terraform plan
+
+$ terraform apply
+
+...
+
+Outputs:
+
+db_public_subnets_ids = [
+  "subnet-0dba3a8bb53c33bcf",
+  "subnet-0537be4502f73fe7d",
+  "subnet-0837a061eb4d679a0",
+]
+dev_public_subnets_ids = [
+  "subnet-02d98279aa8136c99",
+  "subnet-094fb4c4a07cdb9d7",
+  "subnet-0c6c05cf110f958df",
+]
+dev_ssh_sg_id = "sg-031486f7dc26068da"
+dev_vpc_id = "vpc-02c783f405d321af9"
+dev_web_sg_id = "sg-0451ac62cf6ef9afb"
+prod_all_ec2_sg_id = "sg-0d3cbc066fe301549"
+prod_public_subnets_ids = [
+  "subnet-0bb94629c885d7b02",
+  "subnet-00c2f4dd0b1ea0c8d",
+  "subnet-0730ab87c5acd185f",
+]
+prod_ssh_ec2_sg_id = "sg-0efc4a20e105a919f"
+prod_vpc_id = "vpc-0d45a76cbd0d264e7"
+prod_web_alb_sg_id = "sg-0de688612152e299a"
+
+
+
+
+-----------------------------------------------------------------------------
+Заметка:
+
+Стоит упомянуть, что в качестве source для указания модуля можно использовать
+не только локальный путь
+
+https://www.terraform.io/language/modules/sources
+-----------------------------------------------------------------------------
