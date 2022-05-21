@@ -6,7 +6,7 @@
 resource "aws_security_group" "main" {
   name        = "${var.sg_name}-${var.env}"
   description = var.sg_desc
-  vpc_id      = var.vpc_default == false ? var.vpc_id : data.aws_vpc.selected.id
+  vpc_id      = var.vpc_default == false ? var.vpc_id : data.aws_vpc.default_vpc.id
 
   dynamic "ingress" {
     for_each = var.ingress_ports
@@ -33,7 +33,6 @@ resource "aws_security_group" "main" {
       security_groups  = var.to_sg == true ? var.egress_security_groups_ids : []
     }
   }
-
 
   tags = {
     Name = "${var.sg_name}-${var.env}"
