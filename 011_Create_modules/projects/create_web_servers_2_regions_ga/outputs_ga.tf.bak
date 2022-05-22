@@ -1,0 +1,10 @@
+#
+# Global Accelerator
+#
+output "ga_ips" {
+  value = module.global_web_servers_ga.ga_ips
+}
+
+output "ga_dns" {
+  value = module.global_web_servers_ga.ga_dns
+}

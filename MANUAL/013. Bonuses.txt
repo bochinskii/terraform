@@ -1,0 +1,37 @@
+Инициализация
+$ terraform init
+
+Проверка того, что будет создаваться
+$ terraform plan
+
+проверка конфигурации на ее правильность
+$ terraform validate
+
+Выполнить код проекта
+$ terraform apply
+
+Форсированно пересоздать ресурс в коде (в нашем случае - aws_instance с именем ресурса - test_instance)
+$ terraform apply -replace aws_instance.test_instance
+
+Посмотреть outputs'ы, которые есть в terraform.tfstate файле
+$ terraform output
+
+Импортирование ресурсов
+$ terraform import <resource.name>
+-------------------------------------------------------------
+
+Директория .terraform - директория в которой находятся необходимые файл провайдера.
+
+Файл .terraform.tfstate - файл, в котором описаны все созданные на текущий момент ресурсы из
+проекта.
+
+
+Файл .terraform.lock.hcl - файл в котором находится информация о том, что есть в директории
+.terraform (версия провайдера, версии модулей и т.д.).
+
+https://www.terraform.io/language/files/dependency-lock
+
+Данная команда обновит версию провайдера и модулей, если они есть в директории .terraform
+$ terraform init -upgrade
+
+-----------------------------------------------------------
