@@ -44,3 +44,6 @@ secret/*
 011_Create_modules/projects/create_network_dev_and_prod/.terraform/*
 011_Create_modules/projects/create_network_dev_and_prod/terraform*
 011_Create_modules/projects/create_network_dev_and_prod/.terraform*
+012_Import_existing_resources/.terraform/*
+012_Import_existing_resources/terraform*
+012_Import_existing_resources/.terraform*

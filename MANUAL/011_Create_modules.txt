@@ -69,6 +69,12 @@ Remote Sate. Outputs'ы модуля могут использоваться н�
 
 Давайте протестируем
 
+$ export AWS_ACCESS_KEY_ID=<your access key id>
+$ export AWS_SECRET_ACCESS_KEY=<your secret access key>
+$ export AWS_DEFAULT_REGION=<your default region>
+
+$ terraform init
+
 Мы не стали создавать private подсеть, путем удаления cidr блоков из переменной -
 private_subnet_cidr_blocks
 

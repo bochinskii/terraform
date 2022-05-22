@@ -1,0 +1,192 @@
+------------------------------------
+Импортирование существующих ресурсов
+------------------------------------
+
+https://www.terraform.io/cli/import/usage
+
+Импортирование существующих ресурсов редко используется. Тем не менее бывает так,
+что у вас есть важный сервер, который нельзя пересоздавать, но вы хотите управлять
+им с помощью terraform.
+
+Мы рассмотрим импорт ресорсов на примере групп безопасности, но ход действий будет актуален
+для любого ресурса, который можно импротировать (почти все ресурсы можно импротировать
+в terraform)
+
+$ mkdir ./012_Import_existing_resources; cd ./012_Import_existing_resources
+
+$ export AWS_ACCESS_KEY_ID=<your access key id>
+$ export AWS_SECRET_ACCESS_KEY=<your secret access key>
+
+
+$ terraform init
+
+Создаем файл maint.tf и добавляем пока вот такие строки
+
+resource "aws_security_group" "alb" {
+
+}
+
+Теперь нужно импортировать интересующий нас ресурс.
+
+----------------------------------------------------------------------------------------
+Заметка:
+
+Подсказка как именно это сделать
+есть в оффициальной документации к ресурсам.
+
+Вот ссылка на создание ресурса группы безопасности. В конце есть раздел - Import.
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group
+
+В данном случае нужно знать id интересующей группы безопасности.
+Посмотреть id можно из консоли или aws cli.
+
+Вот так по имени группы мы узнали ее id
+
+$ aws ec2 describe-security-groups --filters Name=tag:Name,Values=alb_HTTP_HTTPS --query "SecurityGroups[*].[GroupId]"
+
+[
+    [
+        "sg-0e709fe49e0fb14f5"
+    ]
+]
+---------------------------------------------------------------------------------------
+
+Выполним комманду. Тут alb - это имя ресурса в main.tf файле, а sg-0e709fe49e0fb14f5
+id созданной группы безопасности.
+
+$ terraform import aws_security_group.alb sg-0e709fe49e0fb14f5
+
+ws_security_group.alb: Importing from ID "sg-0e709fe49e0fb14f5"...
+aws_security_group.alb: Import prepared!
+  Prepared aws_security_group for import
+aws_security_group.alb: Refreshing state... [id=sg-0e709fe49e0fb14f5]
+
+Import successful!
+
+The resources that were imported are shown above. These resources are now in
+your Terraform state and will henceforth be managed by Terraform.
+
+
+
+Появился terraform.tfstate файл, в который импортрповалась вся информация ресурса,
+который ранее был создан вручную
+
+$ ls -la
+total 28
+drwxrwxr-x  3 denisb denisb 4096 мая 22 09:10 .
+drwxrwxr-x 17 denisb denisb 4096 мая 22 08:28 ..
+-rw-rw-r--  1 denisb denisb  235 мая 22 08:50 aws_provider.tf
+-rw-rw-r--  1 denisb denisb   41 мая 22 08:55 main.tf
+drwxr-xr-x  3 denisb denisb 4096 мая 22 08:53 .terraform
+-rw-r--r--  1 denisb denisb 1152 мая 22 08:53 .terraform.lock.hcl
+-rw-rw-r--  1 denisb denisb 2656 мая 22 09:10 terraform.tfstate
+
+
+Теперь нам нужно перенести конфигурацию ресурса из terraform.tfstate файла в код
+(в main.tf) файл.
+
+На данный момент это можно сделать только вручную. Оптимальный путь, это открыть
+terraform.tfstate файл и списывать код от туда в файл main.tf.
+Покрайней мере, нужно посмотреть в документации какие параметры группы безопасности
+требуются (required) или вызывают пересоздание ресурса (Forces new resource) и написать в main.tf.
+
+
+Вот такой main.tf файл у нас получился
+
+resource "aws_security_group" "alb" {
+  name = "alb_HTTP_HTTPS"
+  description = "Allow WEB traffic to alb from all"
+
+  vpc_id = "vpc-03ccdbfd7272a7584"
+
+  ingress {
+    from_port = 80
+    to_port = 80
+    cidr_blocks = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+    protocol = "tcp"
+  }
+
+  ingress {
+    from_port = 443
+    to_port = 443
+    cidr_blocks = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+    protocol = "tcp"
+  }
+
+  egress {
+    from_port = 0
+    to_port = 0
+    cidr_blocks = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = []
+    protocol = "-1"
+  }
+
+  tags = {
+    Name = "alb_HTTP_HTTPS"
+  }
+}
+
+
+Нужно добиться того, чтобы группа безопасности не удалялась и по возможности
+не изменялась при запуске plan и apply. Если при запуске plan вы видите, что
+ресурс нуждается в пересоздании или изменяются важные параметры, то нужно
+посмотреть из-за чего это происходит и сделать изменения в main.tf
+
+
+$ terraform plan
+
+aws_security_group.alb: Refreshing state... [id=sg-0e709fe49e0fb14f5]
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration and found no differences, so no changes are needed.
+
+
+Ура! Мы импортировали одну группу безопасности.
+
+Можно заметить, что у нас указан vpc id с помощью hard code. Давайте возьмем данный id
+из data.
+
+В нашем случае окказалось, что это группа безопасности по-умолчанию.
+Добавим весь необходимы код в data.tf и измении vpc id на данные из data.
+
+Вот data.tf
+
+data "aws_vpc" "default" {
+  default = true
+}
+
+А вот часть кода main.tf
+
+resource "aws_security_group" "alb" {
+  ...
+
+  vpc_id = data.aws_vpc.default.id
+
+  ...
+}
+
+Вот у нас получилось "красиво" все импортировать.
+
+
+Теперь сделаем это с остальными группами безопасности по подобному принципу.
+
+
+С окончательным файлом main.tf можно ознакомится в диреткории с проектом.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------
