@@ -47,9 +47,9 @@ secret/*
 011_Create_modules/projects/create_network_dev_and_prod/.terraform/*
 011_Create_modules/projects/create_network_dev_and_prod/terraform*
 011_Create_modules/projects/create_network_dev_and_prod/.terraform*
-011_Create_modules/projects/create_web_servers_2_regions_ga/.terraform/*
-011_Create_modules/projects/create_web_servers_2_regions_ga/terraform*
-011_Create_modules/projects/create_web_servers_2_regions_ga/.terraform*
+011_Create_modules/projects/create_2_global_web_servers/.terraform/*
+011_Create_modules/projects/create_2_global_web_servers/terraform*
+011_Create_modules/projects/create_2_global_web_servers/.terraform*
 012_Import_existing_resources/.terraform/*
 012_Import_existing_resources/terraform*
 012_Import_existing_resources/.terraform*
