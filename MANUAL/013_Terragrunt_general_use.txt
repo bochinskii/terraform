@@ -1,0 +1,262 @@
+-------------------------------------------
+Использование Terragrunt. Общая информация.
+-------------------------------------------
+
+
+https://terragrunt.gruntwork.io/
+
+
+https://terragrunt.gruntwork.io/docs/getting-started/quick-start/
+
+https://terragrunt.gruntwork.io/docs/reference/config-blocks-and-attributes/
+
+
+dev
+
+$ terragrunt run-all init
+
+Group 1
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/vpc
+
+Group 2
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_ssh
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_web
+
+...
+
+$ terragrunt run-all plan
+
+Group 1
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/vpc
+
+Group 2
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_ssh
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_web
+
+...
+
+Changes to Outputs:
+  + db_subnet_cidr_blocks      = []
+  + db_subnets_ids             = []
+  + private_subnet_cidr_blocks = []
+  + private_subnets_ids        = []
+  + public_subnet_cidr_blocks  = [
+      + "10.10.0.0/24",
+      + "10.10.1.0/24",
+      + "10.10.2.0/24",
+    ]
+  + public_subnets_ids         = [
+      + (known after apply),
+      + (known after apply),
+      + (known after apply),
+    ]
+  + vpc_cidr_block             = "10.10.0.0/16"
+  + vpc_id                     = (known after apply)
+
+...
+
+Changes to Outputs:
+  + security_group_description = "SSH"
+  + security_group_id          = (known after apply)
+  + security_group_name        = (known after apply)
+  + security_group_owner_id    = (known after apply)
+  + security_group_vpc_id      = (known after apply)
+
+...
+
+Changes to Outputs:
+  + security_group_description = "WEB"
+  + security_group_id          = (known after apply)
+  + security_group_name        = (known after apply)
+  + security_group_owner_id    = (known after apply)
+  + security_group_vpc_id      = (known after apply)
+
+...
+
+$ terragrunt run-all apply
+
+Group 1
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/vpc
+
+Group 2
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_ssh
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_web
+
+Are you sure you want to run 'terragrunt apply' in each folder of the stack described above? (y/n) y
+
+...
+
+Outputs:
+
+db_subnet_cidr_blocks = tolist([])
+db_subnets_ids = []
+private_subnet_cidr_blocks = tolist([])
+private_subnets_ids = []
+public_subnet_cidr_blocks = tolist([
+  "10.10.0.0/24",
+  "10.10.1.0/24",
+  "10.10.2.0/24",
+])
+public_subnets_ids = [
+  "subnet-03d1c1170ad16299a",
+  "subnet-02cb81ae1da7bc9ea",
+  "subnet-0dd795ad77eec6901",
+]
+vpc_cidr_block = "10.10.0.0/16"
+vpc_id = "vpc-0252b8b0775ba179f"
+
+...
+
+Outputs:
+
+security_group_description = "SSH"
+security_group_id = "sg-0ae24c9cf70bbf7bf"
+security_group_name = "ssh-dev-20220524063658106400000001"
+security_group_owner_id = "880954070217"
+security_group_vpc_id = "vpc-0252b8b0775ba179f"
+
+...
+
+Outputs:
+
+security_group_description = "WEB"
+security_group_id = "sg-0bc5e0511243bafc4"
+security_group_name = "web-dev-20220524063657684800000001"
+security_group_owner_id = "880954070217"
+security_group_vpc_id = "vpc-0252b8b0775ba179f"
+
+...
+
+
+
+$ terragrunt run-all destroy
+
+Group 1
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_ssh
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_web
+
+Group 2
+- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/vpc
+
+WARNING: Are you sure you want to run `terragrunt destroy` in each folder of the stack described above? There is no undo! (y/n) y
+
+...
+
+
+
+
+all
+
+$ terragrunt run-all init
+
+Group 1
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/vpc
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/prod/vpc
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/stage/vpc
+
+Group 2
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_ssh
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_web
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/prod/sg_ssh
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/prod/sg_web
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/stage/sg
+
+...
+
+
+$ terragrunt run-all plan
+
+
+$ terragrunt run-all apply
+
+...
+
+Outputs:
+
+db_subnet_cidr_blocks = tolist([])
+db_subnets_ids = []
+private_subnet_cidr_blocks = tolist([])
+private_subnets_ids = []
+public_subnet_cidr_blocks = tolist([
+  "10.10.0.0/24",
+  "10.10.1.0/24",
+  "10.10.2.0/24",
+])
+public_subnets_ids = [
+  "subnet-0604d73f5e11f74b0",
+  "subnet-0983e392d8b5dd046",
+  "subnet-0acfb6225f3b1bc72",
+]
+vpc_cidr_block = "10.10.0.0/16"
+vpc_id = "vpc-09ee397b2aec0b041"
+
+...
+
+Outputs:
+
+security_group_description = "ALL"
+security_group_id = "sg-0e3a8848396ca8b2a"
+security_group_name = "all-stage-20220524070356310400000001"
+security_group_owner_id = "880954070217"
+security_group_vpc_id = "vpc-0f22935f225b04ed6"
+
+...
+
+Outputs:
+
+security_group_description = "SSH"
+security_group_id = "sg-0f5ca56693f4ab560"
+security_group_name = "ssh-dev-20220524070355721400000001"
+security_group_owner_id = "880954070217"
+security_group_vpc_id = "vpc-09ee397b2aec0b041"
+
+...
+
+Outputs:
+
+security_group_description = "SSH"
+security_group_id = "sg-007a86560916163c2"
+security_group_name = "ssh-prod-20220524070356512000000001"
+security_group_owner_id = "880954070217"
+security_group_vpc_id = "vpc-0a3d810e76541ebe9"
+
+...
+
+Outputs:
+
+security_group_description = "WEB"
+security_group_id = "sg-0bc1179237263dca8"
+security_group_name = "web-prod-20220524070356884600000001"
+security_group_owner_id = "880954070217"
+security_group_vpc_id = "vpc-0a3d810e76541ebe9"
+
+...
+
+Outputs:
+
+security_group_description = "WEB"
+security_group_id = "sg-03331967c9fdd3460"
+security_group_name = "web-dev-20220524070356359100000001"
+security_group_owner_id = "880954070217"
+security_group_vpc_id = "vpc-09ee397b2aec0b041"
+
+...
+
+
+$ terragrunt run-all destroy
+
+Group 1
+- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_ssh
+- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_web
+- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/prod/sg_ssh
+- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/prod/sg_web
+- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/stage/sg
+
+Group 2
+- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/vpc
+- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/prod/vpc
+- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/stage/vpc
+
+WARNING: Are you sure you want to run `terragrunt destroy` in each folder of the stack described above? There is no undo! (y/n) y
+
+...

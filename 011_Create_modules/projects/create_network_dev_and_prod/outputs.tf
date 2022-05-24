@@ -16,7 +16,7 @@ output "prod_public_subnets_ids" {
   value = module.vpc_prod.public_subnets_ids
 }
 
-output "db_public_subnets_ids" {
+output "prod_db_subnets_ids" {
   value = module.vpc_prod.db_subnets_ids
 }
 

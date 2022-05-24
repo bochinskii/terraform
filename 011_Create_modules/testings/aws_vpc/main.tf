@@ -88,6 +88,7 @@ resource "aws_nat_gateway" "main" {
 
 # Route table (public)
 resource "aws_route_table" "public" {
+  count = length(aws_subnet.public[*].id) > 0 ? 1 : 0
   vpc_id = aws_vpc.main.id
 
   route {
@@ -103,7 +104,7 @@ resource "aws_route_table" "public" {
 resource "aws_route_table_association" "public" {
   count          = length(aws_subnet.public[*].id)
   subnet_id      = element(aws_subnet.public[*].id, count.index)
-  route_table_id = aws_route_table.public.id
+  route_table_id = element(aws_route_table.public[*].id, count.index)
 }
 
 # Route tables (private)
@@ -129,6 +130,7 @@ resource "aws_route_table_association" "private" {
 
 # Route table (db)
 resource "aws_route_table" "db" {
+  count = length(aws_subnet.db[*].id) > 0 ? 1 : 0
   vpc_id = aws_vpc.main.id
 
   tags = {
@@ -139,5 +141,5 @@ resource "aws_route_table" "db" {
 resource "aws_route_table_association" "db" {
   count          = length(aws_subnet.db[*].id)
   subnet_id      = element(aws_subnet.db[*].id, count.index)
-  route_table_id = aws_route_table.db.id
+  route_table_id = element(aws_route_table.db[*].id, count.index)
 }
