@@ -1,17 +1,305 @@
--------------------------------------------
-Использование Terragrunt. Общая информация.
--------------------------------------------
+----------------------------------------------------------
+Использование Terragrunt. Общие принципы работы на примере
+----------------------------------------------------------
 
+terragrunt - это оболочка для terraform, которая предоставляет дополнительные инструменты.
+Среди этих инструментов:
+- запуск terraform команд (init, apply, plan, destroy и.т.д)  для разных сред одновременно.
+- не создавать повторяющийся код (для настроек провайдера и настроек remote state'а)
+- и т.д.
+
+Вот где можно почитать
 
 https://terragrunt.gruntwork.io/
-
 
 https://terragrunt.gruntwork.io/docs/getting-started/quick-start/
 
 https://terragrunt.gruntwork.io/docs/reference/config-blocks-and-attributes/
 
+Рассмотрим общие принципы на примере.
+Нас нужно создать инфраструткуру (VPC и Securoty groups'ы) для разных окружений.
 
-dev
+------------------------------------
+Рассмотрим директорию - terraform_way
+------------------------------------
+
+У нас есть директория 013_Create_VPC_SG_Terragrunt. В ней папка - terraform_way.
+
+Как мы видим у нас есть разные окружения (dev, stage и prod). К каждом мы
+строим VPC с группами безопасности. Используем модули, которые мы писали ранее.
+
+Для prod мы сделали инфраструктуру в отличном регионе чем dev и stage. Так же различаются
+некторые настройки VPC - в prod есть public и db подссеть, а в остальных - только public.
+Ну и отличаются правила для групп безопасности.
+
+Можете ознакомится с файлами проекта.
+
+Вот написали мы код и что теперь делать? Нужно зайти в каждую директорию (vpc, sg),
+каждой директории окружения (dev, prod, stage) и ввести команды init, plan и apply.
+Т.е. нужно это сделать 6 раз. Так же, нужно не забыть сначала выполнить команды
+plan и apply для vpc, а уже потом для sg, т.к. для группы безопасности нужно vpc id.
+
+Так вот, с помощью terragrunt можно запустить один раз команды teeraform и они отработают
+в необходимом порядке.
+
+
+Так же можно заметить, что у нас 6 файлов provider.tf, в котором мы описывам провайдера и backend.
+Так же 3 remote_state.tf файла, где мы мы описываем откуда брать vpc id для
+групп безопасности.
+
+Так вот, с помощью Terragrant можно написать только один файл. Даже не смотря на то,
+что настройки провайдера могут отличаться (напомним, что для prod мы создает инфраструктуру
+в другом регионе), так же отличаются настройки backend'а (путем в s3 bucket'е) и
+отличаются настройки remote state'а (путем в s3 bucket'е).
+
+---------------------------------------
+Рассмотрим директорию - terragrunt_way
+--------------------------------------
+
+В 013_Create_VPC_SG_Terragrunt есть папка - terragrunt_way. Тут, так же как и
+в terraform_way проекты поделены на dev, stage и prod. Внутри этих, так же, находятся директорий
+в которых мы создаем ресурсы с помощью соответствующих модулей.
+
+------------------------------------------
+Настройка backend, provider и remote state
+------------------------------------------
+
+Начнем с генерации файлов для настроект провайдера, remote state и backend'а.
+
+Прям в корне директории 013_Create_VPC_SG_Terragrunt есть файл - terragrunt.hcl.
+Это? так называемый? parent (родительский) файл. К нему будут "присоединяться" дочерние
+terragrunt.hcl файлы, но об этом позже.
+
+Рассмотрим кусок кода (аналог provider.tf):
+
+#
+# Backend
+#
+
+remote_state {
+  backend = "s3"
+  generate = {
+    path      = "_backend.tf"
+    if_exists = "overwrite"
+  }
+  config = {
+    bucket  = "bochinskii-network-state"
+
+    key     = "terragrunt/${path_relative_to_include()}/terraform.tfstate"
+    region  = "eu-central-1"
+    encrypt = true
+  }
+}
+
+Она говорит о том, чтобы после того, как выполнится команда init сгенерируются
+файлы с именем "_backend.tf". Далее, они поместяться в соответствующие директории
+с модулями (позже это увидим). После чего при выполнении команды plan или apply
+будут использоваться настройки описаные в директиве config.
+
+Нижнее подчеркивание в имени не обязательно. Просто с таким именем нам будет легче найти этот файл.
+
+функция - ${path_relative_to_include()}, готорит о том, что в bucket'е будут использоваться ключи
+соответствующие путям от родительской директории к дочерним (внутренним).
+Т.е. в bucket'е bochinskii-network-state создадутся вот такие объекты:
+- terragrunt/dev/vpc/terraform.tfstate
+- terragrunt/dev/sg_ssh/terraform.tfstate
+- terragrunt/dev/sg_web/terraform.tfstate
+- и т.д.
+
+Т.е. мы с помощью данной концигурации создадим 8 _backend.tf файлов с соответствующей
+настройкой для каждого проекта в окружениях.
+
+Далее, рассмотрим кусок кода (аналог provider.tf):
+
+#
+# Provider
+#
+generate "provider" {
+  path = "_provider.tf"
+  if_exists = "overwrite"
+
+  contents = <<EOF
+provider "aws" {
+  region = var.region
+}
+
+variable "region" {}
+EOF
+
+}
+
+Он гененрирует файл _provider.tf. При этом используя переменную для региона. Если вы помните,
+в prod у нас используется отличный от других окружений регион.
+
+В директиве contents мы описываем terraform код.
+
+Обязательно, нужно описать пустую переменную иначе работать не будет т.к. переменные
+должны быть определены (мы с этим сталкивались в начале нашего изучения terraform)
+
+variable "region" {}
+
+
+Далее, рассмотрим код, говорящий о том, что нужно искать файл common.tfvars
+в дочерних директориях.:
+
+#
+# Load vars
+#
+
+terraform {
+  extra_arguments "custom_vars" {
+    commands = get_terraform_commands_that_need_vars()
+
+    required_var_files = [find_in_parent_folders("common.tfvars")]
+  }
+}
+
+Ну, и соответственно, в директориях dev, stage и prod вы можете найти данный файл (common.tfvars),
+где мы указали переменную для региона.
+
+
+
+---------------------------------------------
+Создание ресурсов (VPC и групп безопасности).
+---------------------------------------------
+
+Вы можете заметить, что в каждой директории, где мы создаем ресурсы, есть файлы terragrunt.hcl
+Это так называемые child (дочерние) файлы.
+
+Рассмотрим файл terragrunt.hcl на примере создания VPC в dev окружении, т.е. файл,
+который находится в директории dev/vpc (в остальных дерикториях по аналогии).
+
+Вот эта строчка говорит о том, что дочерний файл должен найти родительский файл
+во всех директориях "выше".
+
+#
+# Use parent terrugrunt.hcl file
+#
+include "root" {
+  path = find_in_parent_folders()
+}
+
+Ну, а вот код использования модуля т.е. создания ресурса (аналог main.tf)
+
+#
+# Use Module
+#
+terraform {
+  source = "git@github.com:bochinskii/terraform-modules.git//aws_vpc?ref=v1.0.0"
+}
+
+inputs = {
+  env = "dev"
+  vpc_cidr_block = "10.10.0.0/16"
+  public_subnet_cidr_blocks = [
+    "10.10.0.0/24",
+    "10.10.1.0/24",
+    "10.10.2.0/24"
+  ]
+  private_subnet_cidr_blocks = []
+  db_subnet_cidr_blocks = []
+}
+
+
+
+Теперь, рассмотрим создания ресурсов групп бузопасности в dev окружении, т.е.
+директрии dev/sg_ssh и dev/sg_web.
+
+Вы можете задать вопрос. Почему в terraform_way была одна директория sg, а тут две?
+Дело в том, что мы можем использовать директиву inputs только один раз в одном файле
+terragrunt.hcl, а нам нужно создать две группы безопасности в dev. Поэтому мы сделали
+одну директорию для web траффика, а вторую для ssh траффика.
+
+Рассмотрим dev/sg_ssh/terragrunt.hcl файл
+
+Вот код (аналог, remote_state.tf) говорящий о том, что outputs нужно искать в директории
+выше - vpc. Нам нужен vpc id, который создастся модулем vpc.
+
+#
+# remote_state
+#
+dependency "vpc" {
+  config_path = "../vpc"
+  mock_outputs = {
+    vpc_id = ""
+  }
+}
+
+Вот где мы использывали vpc id
+
+inputs = {
+  ...
+  vpc_id      = dependency.vpc.outputs.vpc_id
+  ...
+}
+
+Для того, чтобы можно было использовать команду plan, apply один раз, а не 8,
+нужна вот эта директива
+
+#
+# VPC first then seciruty groups
+#
+dependencies {
+  paths = ["../vpc"]
+}
+
+она говорит о том, что сначало должен отработать vpc, а потом уже sg_ssh. Это некоторый
+такой аналог - depends_on в ресурсах terraform.
+
+Так же очень важен вот этот параметр в директиве dependency
+
+mock_outputs = {
+  vpc_id = ""
+}
+
+Дело в том, что когда мы запустим команду plan, apply еще не будет output'а - vpi_id
+для групп безопасности. Поэтому нужно указать данный output как пустой. Как только vpc
+будет готов, будет готов и output - vpi_id.
+
+Подобные настройки и в остальных директориях. Можете ознакомится с ними самостоятельно.
+
+-------------------------------------------------------------------------------------
+Заметка:
+
+Еще пару слов о модуле, который используется при создании групп безопасности.
+Вы могли заметить, что мы использовали оффициальный модуль, вместо "нашего".
+Дело в том, что по некоторым причинам "наш" модуль не работает корректно с terragrunt.
+Возможно какие-то багги в terragrunt. Проблема в том, что не указываются cidr блоки.
+А без них не создаются правила для групп безопасности.
+---------------------------------------------------------------------------------
+
+----------------------------
+Запуск проекта на Terragrunt
+----------------------------
+
+Если хотите сперва протестировать, например, создание dev/vpc, то нужно сделать так
+(делаем это из 013_Create_VPC_SG_Terragrunt/terragrunt_way):
+
+$ cd ./dev/vpc
+
+$ terragrunt init
+
+$ terragrunt plan
+
+$ terragrunt apply
+
+Далее, можете запустить одну из групп безопасности, например
+
+$ cd ../sg_ssh
+
+$ terragrunt init
+
+$ terragrunt plan
+
+$ terragrunt apply
+
+Но, это интересно только для тестирования и разработки. В конце концов, хотелось бы
+использовать фичи terragrant'а, а иначе зачем он тогда нужен.
+
+Вот, к примеру, вы можете испытать только dev
+(делаем это из 013_Create_VPC_SG_Terragrunt/terragrunt_way):
+
+$ cd dev
 
 $ terragrunt run-all init
 
@@ -23,6 +311,24 @@ Group 2
 - Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_web
 
 ...
+
+Как мы видим прошла инициализация для vpc и групп бьезопасности с одной комманды.
+
+Вот, что можно увидить в директории со созданием русорсов, на примере dev/vpc
+
+$ ls -l ./vpc/.terragrunt-cache/91Iu7WNTBiE9V1yPcN9QvCF2Dmo/7edyiyaOPxL0HUuXsqzVGW8rpxY/aws_vpc/
+total 28
+-rw-r--r-- 1 denisb denisb  226 мая 24 10:49 _backend.tf
+-rw-rw-r-- 1 denisb denisb  281 мая 24 10:49 data.tf
+-rw-rw-r-- 1 denisb denisb 3909 мая 24 10:49 main.tf
+-rw-rw-r-- 1 denisb denisb  536 мая 24 10:49 outputs.tf
+-rw-r--r-- 1 denisb denisb  112 мая 24 10:49 _provider.tf
+-rw-rw-r-- 1 denisb denisb  423 мая 24 10:49 terragrunt.hcl
+-rw-rw-r-- 1 denisb denisb  638 мая 24 10:49 variables.tf
+
+Что произошло? Terragrunt при инициализации скопировал модуль и добавил сгенерированные
+файлы _backend.tf и _provider.tf. Таким образом, terragrunt из модуля сделал проект
+(мы же помним, что модуль отличается от проекта всего лишь отсувтсвием настроек провайдера).
 
 $ terragrunt run-all plan
 
@@ -128,6 +434,7 @@ security_group_vpc_id = "vpc-0252b8b0775ba179f"
 ...
 
 
+Не забываем удалять инфраструктуру
 
 $ terragrunt run-all destroy
 
@@ -143,9 +450,8 @@ WARNING: Are you sure you want to run `terragrunt destroy` in each folder of the
 ...
 
 
+Теперь, давайте запустим все окружения (делаем это из 013_Create_VPC_SG_Terragrunt/terragrunt_way):
 
-
-all
 
 $ terragrunt run-all init
 
@@ -166,6 +472,7 @@ Group 2
 
 $ terragrunt run-all plan
 
+...
 
 $ terragrunt run-all apply
 
@@ -183,79 +490,132 @@ public_subnet_cidr_blocks = tolist([
   "10.10.2.0/24",
 ])
 public_subnets_ids = [
-  "subnet-0604d73f5e11f74b0",
-  "subnet-0983e392d8b5dd046",
-  "subnet-0acfb6225f3b1bc72",
+  "subnet-0d52312fcf00a2259",
+  "subnet-065f400f43264c646",
+  "subnet-05d1f7acbf0f39c3a",
 ]
 vpc_cidr_block = "10.10.0.0/16"
-vpc_id = "vpc-09ee397b2aec0b041"
+vpc_id = "vpc-0efa2e20ab8ec7458"
+
+...
+
+Outputs:
+
+db_subnet_cidr_blocks = tolist([
+  "192.168.10.0/24",
+  "192.168.11.0/24",
+  "192.168.12.0/24",
+])
+db_subnets_ids = [
+  "subnet-0940b74badc9b9f5a",
+  "subnet-020c1cd2d88124e82",
+  "subnet-0f84df91986f1eab8",
+]
+private_subnet_cidr_blocks = tolist([])
+private_subnets_ids = []
+public_subnet_cidr_blocks = tolist([
+  "192.168.0.0/24",
+  "192.168.1.0/24",
+  "192.168.2.0/24",
+])
+public_subnets_ids = [
+  "subnet-058c50155bd51d0fc",
+  "subnet-039bb098eddb6b15a",
+  "subnet-03e5c39f9f7b6002f",
+]
+vpc_cidr_block = "192.168.0.0/16"
+vpc_id = "vpc-0e267d77e8ff4fa98"
+
+...
+
+Outputs:
+
+db_subnet_cidr_blocks = tolist([])
+db_subnets_ids = []
+private_subnet_cidr_blocks = tolist([])
+private_subnets_ids = []
+public_subnet_cidr_blocks = tolist([
+  "10.20.0.0/24",
+  "10.20.1.0/24",
+  "10.20.2.0/24",
+])
+public_subnets_ids = [
+  "subnet-0df5da00c083521db",
+  "subnet-00a39b944da5d9fab",
+  "subnet-0f2fe30899a7e0a02",
+]
+vpc_cidr_block = "10.20.0.0/16"
+vpc_id = "vpc-0907f977005507503"
+
+...
+
+Outputs:
+
+security_group_description = "SSH"
+security_group_id = "sg-0a5b60dd85961276d"
+security_group_name = "ssh-dev-20220524101712825600000001"
+security_group_owner_id = "880954070217"
+security_group_vpc_id = "vpc-0efa2e20ab8ec7458"
+
+...
+
+Outputs:
+
+security_group_description = "WEB"
+security_group_id = "sg-079fe3ffaadefe68b"
+security_group_name = "web-dev-20220524101712445100000001"
+security_group_owner_id = "880954070217"
+security_group_vpc_id = "vpc-0efa2e20ab8ec7458"
+
+...
+
+Outputs:
+
+security_group_description = "WEB"
+security_group_id = "sg-00c2d5f908ab34957"
+security_group_name = "web-prod-20220524101818018400000001"
+security_group_owner_id = "880954070217"
+security_group_vpc_id = "vpc-0e267d77e8ff4fa98"
+
+...
+
+Outputs:
+
+security_group_description = "SSH"
+security_group_id = "sg-0ea3b4dc4f673dbe9"
+security_group_name = "ssh-prod-20220524101818749600000001"
+security_group_owner_id = "880954070217"
+security_group_vpc_id = "vpc-0e267d77e8ff4fa98"
 
 ...
 
 Outputs:
 
 security_group_description = "ALL"
-security_group_id = "sg-0e3a8848396ca8b2a"
-security_group_name = "all-stage-20220524070356310400000001"
+security_group_id = "sg-02d7f2e06409ea3a9"
+security_group_name = "all-stage-20220524101832969700000001"
 security_group_owner_id = "880954070217"
-security_group_vpc_id = "vpc-0f22935f225b04ed6"
+security_group_vpc_id = "vpc-0907f977005507503"
 
-...
 
-Outputs:
+Таким образом выполнив комманду apply, только, один раз мы посмтроили множество ресурсов.
 
-security_group_description = "SSH"
-security_group_id = "sg-0f5ca56693f4ab560"
-security_group_name = "ssh-dev-20220524070355721400000001"
-security_group_owner_id = "880954070217"
-security_group_vpc_id = "vpc-09ee397b2aec0b041"
-
-...
-
-Outputs:
-
-security_group_description = "SSH"
-security_group_id = "sg-007a86560916163c2"
-security_group_name = "ssh-prod-20220524070356512000000001"
-security_group_owner_id = "880954070217"
-security_group_vpc_id = "vpc-0a3d810e76541ebe9"
-
-...
-
-Outputs:
-
-security_group_description = "WEB"
-security_group_id = "sg-0bc1179237263dca8"
-security_group_name = "web-prod-20220524070356884600000001"
-security_group_owner_id = "880954070217"
-security_group_vpc_id = "vpc-0a3d810e76541ebe9"
-
-...
-
-Outputs:
-
-security_group_description = "WEB"
-security_group_id = "sg-03331967c9fdd3460"
-security_group_name = "web-dev-20220524070356359100000001"
-security_group_owner_id = "880954070217"
-security_group_vpc_id = "vpc-09ee397b2aec0b041"
-
-...
+Удаляем инфраструктуру
 
 
 $ terragrunt run-all destroy
 
 Group 1
-- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_ssh
-- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_web
-- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/prod/sg_ssh
-- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/prod/sg_web
-- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/stage/sg
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_ssh
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/sg_web
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/prod/sg_ssh
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/prod/sg_web
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/stage/sg
 
 Group 2
-- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/vpc
-- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/prod/vpc
-- Module /home/denisb/WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/stage/vpc
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/dev/vpc
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/prod/vpc
+- Module /WORK/Terraform/013_Create_VPC_Terragrunt/terragrunt_way/stage/vpc
 
 WARNING: Are you sure you want to run `terragrunt destroy` in each folder of the stack described above? There is no undo! (y/n) y
 
